@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "SubTrack",
+    "slug": "subtrack",
+    "scheme": "subtrack",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.subtrack.mobile"
+    },
+    "android": {
+      "package": "app.subtrack.mobile"
+    },
+    "plugins": ["expo-router", "expo-secure-store", "expo-notifications"],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

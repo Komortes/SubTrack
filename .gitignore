@@ -1,0 +1,16 @@
+.DS_Store
+node_modules/
+.expo/
+dist/
+build/
+coverage/
+.env
+.env.*
+!.env.example
+vendor/
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+bootstrap/cache/*
+
