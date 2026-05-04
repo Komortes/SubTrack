@@ -8,9 +8,11 @@ coverage/
 .env.*
 !.env.example
 vendor/
+backend/database/*.sqlite
+backend/.phpunit.cache/
+backend/.phpunit.result.cache
 storage/framework/cache/*
 storage/framework/sessions/*
 storage/framework/views/*
 storage/logs/*
 bootstrap/cache/*
-

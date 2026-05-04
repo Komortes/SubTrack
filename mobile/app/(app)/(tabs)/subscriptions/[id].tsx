@@ -55,6 +55,12 @@ export default function SubscriptionDetailsScreen() {
             <Text className="text-center font-semibold text-white">Отметить оплаченной</Text>
           </Pressable>
           <Pressable
+            className="rounded-2xl bg-ink px-5 py-4"
+            onPress={() => router.push(`/(app)/(tabs)/subscriptions/${subscription.id}/edit`)}
+          >
+            <Text className="text-center font-semibold text-white">Редактировать</Text>
+          </Pressable>
+          <Pressable
             className="rounded-2xl bg-white px-5 py-4"
             onPress={() => updateSubscription(subscription.id, { isActive: !subscription.isActive })}
           >
@@ -76,4 +82,3 @@ export default function SubscriptionDetailsScreen() {
     </>
   );
 }
-

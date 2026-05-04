@@ -3,7 +3,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { useAuthStore } from "@/store/authStore";
 
 export default function LoginScreen() {
-  const useOfflineMode = useAuthStore((state) => state.useOfflineMode);
+  const enableOfflineMode = useAuthStore((state) => state.useOfflineMode);
 
   return (
     <View className="flex-1 justify-center bg-white px-6">
@@ -17,7 +17,7 @@ export default function LoginScreen() {
       <Pressable
         className="mt-3 px-5 py-4"
         onPress={() => {
-          useOfflineMode();
+          enableOfflineMode();
           router.replace("/(app)/(tabs)");
         }}
       >
@@ -29,4 +29,3 @@ export default function LoginScreen() {
     </View>
   );
 }
-

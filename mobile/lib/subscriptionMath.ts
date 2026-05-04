@@ -41,3 +41,24 @@ export function monthProgress(): number {
   return today.getDate() / total;
 }
 
+export function nextRenewalDate(subscription: Pick<Subscription, "billingPeriod" | "customPeriodDays" | "renewalDate">): string {
+  const value = new Date(`${subscription.renewalDate}T00:00:00`);
+
+  switch (subscription.billingPeriod) {
+    case "weekly":
+      value.setDate(value.getDate() + 7);
+      break;
+    case "yearly":
+      value.setFullYear(value.getFullYear() + 1);
+      break;
+    case "custom":
+      value.setDate(value.getDate() + (subscription.customPeriodDays ?? 30));
+      break;
+    case "monthly":
+    default:
+      value.setMonth(value.getMonth() + 1);
+      break;
+  }
+
+  return value.toISOString().slice(0, 10);
+}

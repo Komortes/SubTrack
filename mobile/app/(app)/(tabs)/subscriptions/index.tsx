@@ -5,7 +5,7 @@ import { SubscriptionCard } from "@/components/SubscriptionCard";
 import { SubscriptionCategory } from "@/lib/types";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
 
-const filters: Array<{ label: string; value: "all" | "active" | "paused" | SubscriptionCategory }> = [
+const filters: { label: string; value: "all" | "active" | "paused" | SubscriptionCategory }[] = [
   { label: "Все", value: "all" },
   { label: "Активные", value: "active" },
   { label: "Приостановленные", value: "paused" },
@@ -66,4 +66,3 @@ export default function SubscriptionsScreen() {
     </ScrollView>
   );
 }
-

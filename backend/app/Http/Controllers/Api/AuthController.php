@@ -22,7 +22,10 @@ class AuthController extends Controller
             'password' => Hash::make($data['password']),
         ]);
 
-        return ['token' => $user->createToken('mobile')->plainTextToken, 'user' => $user];
+        return response()->json([
+            'token' => $user->createToken('mobile')->plainTextToken,
+            'user' => $user,
+        ], 201);
     }
 
     public function login(Request $request)
@@ -48,4 +51,3 @@ class AuthController extends Controller
         return response()->noContent();
     }
 }
-

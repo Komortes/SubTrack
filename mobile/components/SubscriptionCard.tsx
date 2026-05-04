@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from "react-native";
+import { categoryLabels, periodLabels } from "@/lib/catalog";
 import { daysUntil, formatMoney } from "@/lib/subscriptionMath";
 import { Subscription } from "@/lib/types";
 import { ServiceIcon } from "./ServiceIcon";
@@ -6,14 +7,6 @@ import { ServiceIcon } from "./ServiceIcon";
 type Props = {
   subscription: Subscription;
   onPress?: () => void;
-};
-
-const categoryLabel: Record<string, string> = {
-  entertainment: "Развлечения",
-  work: "Работа",
-  cloud: "Облако",
-  health: "Здоровье",
-  other: "Другое"
 };
 
 export function SubscriptionCard({ subscription, onPress }: Props) {
@@ -39,7 +32,9 @@ export function SubscriptionCard({ subscription, onPress }: Props) {
             </Text>
           </View>
           <View className="mt-1 flex-row items-center justify-between gap-2">
-            <Text className="text-sm text-muted">{categoryLabel[subscription.category]}</Text>
+            <Text className="text-sm text-muted">
+              {categoryLabels[subscription.category]} · {periodLabels[subscription.billingPeriod]}
+            </Text>
             <Text className={days <= 0 ? "text-sm font-semibold text-danger" : "text-sm text-muted"}>
               {renewalLabel}
             </Text>
@@ -49,4 +44,3 @@ export function SubscriptionCard({ subscription, onPress }: Props) {
     </Pressable>
   );
 }
-

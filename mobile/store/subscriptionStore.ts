@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { seedSubscriptions } from "@/lib/seed";
+import { nextRenewalDate } from "@/lib/subscriptionMath";
 import { Subscription } from "@/lib/types";
 
 type SubscriptionState = {
@@ -11,12 +12,6 @@ type SubscriptionState = {
   deleteSubscription: (id: string) => void;
   markPaid: (id: string) => void;
 };
-
-function nextMonthlyDate(date: string): string {
-  const value = new Date(`${date}T00:00:00`);
-  value.setMonth(value.getMonth() + 1);
-  return value.toISOString().slice(0, 10);
-}
 
 export const useSubscriptionStore = create<SubscriptionState>()(
   persist(
@@ -37,7 +32,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       markPaid: (id) =>
         set((state) => ({
           subscriptions: state.subscriptions.map((item) =>
-            item.id === id ? { ...item, renewalDate: nextMonthlyDate(item.renewalDate) } : item
+            item.id === id ? { ...item, renewalDate: nextRenewalDate(item) } : item
           )
         }))
     }),
@@ -47,4 +42,3 @@ export const useSubscriptionStore = create<SubscriptionState>()(
     }
   )
 );
-

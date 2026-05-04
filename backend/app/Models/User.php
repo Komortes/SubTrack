@@ -16,6 +16,11 @@ class User extends Authenticatable
 
     protected $hidden = ['password', 'remember_token'];
 
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+    ];
+
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
@@ -26,4 +31,3 @@ class User extends Authenticatable
         return $this->hasMany(PushToken::class);
     }
 }
-
