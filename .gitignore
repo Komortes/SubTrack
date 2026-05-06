@@ -1,4 +1,6 @@
 .DS_Store
+.superpowers/
+docs/superpowers/
 node_modules/
 .expo/
 dist/
@@ -7,6 +9,7 @@ coverage/
 .env
 .env.*
 !.env.example
+!mobile/.env.device.example
 vendor/
 backend/database/*.sqlite
 backend/.phpunit.cache/

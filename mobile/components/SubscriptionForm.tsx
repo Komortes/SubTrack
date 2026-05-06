@@ -1,5 +1,7 @@
+import { Feather } from "@expo/vector-icons";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ScrollView, Text, TextInput, View } from "react-native";
+import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { billingPeriods, categories, currencies, serviceSuggestions } from "@/lib/catalog";
 import { BillingPeriod, Subscription, SubscriptionCategory } from "@/lib/types";
 
@@ -60,132 +62,144 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
   }
 
   return (
-    <ScrollView className="flex-1 bg-surface" contentContainerClassName="gap-5 px-5 py-6">
+    <ScrollView className="flex-1 bg-bg" contentContainerClassName="gap-5 px-5 py-6">
       <View>
-        <Text className="mb-3 text-sm font-semibold text-ink">Популярные сервисы</Text>
+        <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Популярные сервисы</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View className="flex-row gap-2">
             {serviceSuggestions.map((suggestion) => (
-              <Pressable
+              <AnimatedPressable
                 key={suggestion.name}
-                className="rounded-full bg-white px-4 py-2"
+                className="flex-row items-center gap-2 rounded-full border border-border bg-surface px-4 py-2"
                 onPress={() => applySuggestion(suggestion)}
               >
-                <Text className="font-semibold text-ink">{suggestion.name}</Text>
-              </Pressable>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: suggestion.color }} />
+                <Text className="font-semibold text-subtle">{suggestion.name}</Text>
+              </AnimatedPressable>
             ))}
           </View>
         </ScrollView>
       </View>
 
-      <TextInput
-        className="rounded-2xl border border-line bg-white px-4 py-4"
-        placeholder="Название"
-        value={name}
-        onChangeText={setName}
-      />
-
-      <View className="flex-row gap-3">
+      <View>
+        <Text className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted">Название подписки</Text>
         <TextInput
-          className="flex-1 rounded-2xl border border-line bg-white px-4 py-4"
-          placeholder="Сумма"
+          className="rounded-2xl border border-border bg-surface px-4 py-4 text-ink"
+          placeholder="e.g. Netflix Premium"
+          placeholderTextColor="#525252"
+          value={name}
+          onChangeText={setName}
+        />
+      </View>
+
+      <View>
+        <Text className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted">Сумма</Text>
+        <TextInput
+          className="rounded-2xl border border-border bg-surface px-4 py-4 text-ink"
+          placeholder="0.00"
+          placeholderTextColor="#525252"
           keyboardType="decimal-pad"
           value={amount}
           onChangeText={setAmount}
         />
-        <View className="w-32 flex-row rounded-2xl bg-white p-1">
+        <View className="mt-2 flex-row rounded-2xl border border-border bg-surface p-1">
           {currencies.map((item) => (
-            <Pressable
+            <AnimatedPressable
               key={item}
-              className={`flex-1 items-center justify-center rounded-xl ${currency === item ? "bg-ink" : ""}`}
+              className={`flex-1 items-center justify-center rounded-xl py-2.5 ${currency === item ? "bg-ink" : ""}`}
               onPress={() => setCurrency(item)}
             >
-              <Text className={currency === item ? "text-xs font-semibold text-white" : "text-xs font-semibold text-muted"}>
+              <Text className={currency === item ? "text-xs font-semibold text-bg" : "text-xs font-semibold text-muted"}>
                 {item}
               </Text>
-            </Pressable>
+            </AnimatedPressable>
           ))}
         </View>
       </View>
 
       <View>
-        <Text className="mb-3 text-sm font-semibold text-ink">Период</Text>
+        <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Период</Text>
         <View className="flex-row flex-wrap gap-2">
           {billingPeriods.map((item) => (
-            <Pressable
+            <AnimatedPressable
               key={item.value}
-              className={`rounded-full px-4 py-2 ${billingPeriod === item.value ? "bg-ink" : "bg-white"}`}
+              className={`rounded-full border px-4 py-2 ${billingPeriod === item.value ? "border-ink bg-ink" : "border-border bg-surface"}`}
               onPress={() => setBillingPeriod(item.value)}
             >
-              <Text className={billingPeriod === item.value ? "font-semibold text-white" : "font-semibold text-ink"}>
+              <Text className={billingPeriod === item.value ? "font-semibold text-bg" : "font-semibold text-muted"}>
                 {item.label}
               </Text>
-            </Pressable>
+            </AnimatedPressable>
           ))}
         </View>
       </View>
 
       {billingPeriod === "custom" ? (
         <TextInput
-          className="rounded-2xl border border-line bg-white px-4 py-4"
+          className="rounded-2xl border border-border bg-surface px-4 py-4 text-ink"
           placeholder="Каждые X дней"
+          placeholderTextColor="#525252"
           keyboardType="number-pad"
           value={customPeriodDays}
           onChangeText={setCustomPeriodDays}
         />
       ) : null}
 
-      <TextInput
-        className="rounded-2xl border border-line bg-white px-4 py-4"
-        placeholder="Дата списания YYYY-MM-DD"
-        value={renewalDate}
-        onChangeText={setRenewalDate}
-      />
+      <View>
+        <Text className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted">Дата списания</Text>
+        <TextInput
+          className="rounded-2xl border border-border bg-surface px-4 py-4 text-ink"
+          placeholder="дд.мм.гггг"
+          placeholderTextColor="#525252"
+          value={renewalDate}
+          onChangeText={setRenewalDate}
+        />
+      </View>
 
       <View>
-        <Text className="mb-3 text-sm font-semibold text-ink">Категория</Text>
+        <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Категория</Text>
         <View className="flex-row flex-wrap gap-2">
-          {categories.map((item) => (
-            <Pressable
-              key={item.value}
-              className={`rounded-full px-4 py-2 ${category === item.value ? "bg-ink" : "bg-white"}`}
-              onPress={() => setCategory(item.value)}
-            >
-              <Text className={category === item.value ? "font-semibold text-white" : "font-semibold text-ink"}>
-                {item.label}
-              </Text>
-            </Pressable>
-          ))}
+          {categories.map((item) => {
+            type FeatherIcon = keyof typeof Feather.glyphMap;
+            const iconName: FeatherIcon =
+              item.value === "entertainment" ? "tv"
+              : item.value === "work" ? "briefcase"
+              : item.value === "cloud" ? "cloud"
+              : item.value === "health" ? "heart"
+              : "more-horizontal";
+            const selected = category === item.value;
+            return (
+              <AnimatedPressable
+                key={item.value}
+                className={`flex-row items-center gap-1.5 rounded-full border px-4 py-2 ${selected ? "border-ink bg-ink" : "border-border bg-surface"}`}
+                onPress={() => setCategory(item.value)}
+              >
+                <Feather name={iconName} size={13} color={selected ? "#0a0a0a" : "#525252"} />
+                <Text className={selected ? "font-semibold text-bg" : "font-semibold text-muted"}>
+                  {item.label}
+                </Text>
+              </AnimatedPressable>
+            );
+          })}
         </View>
       </View>
 
-      <View className="flex-row gap-3">
+      <View>
+        <Text className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted">Заметки</Text>
         <TextInput
-          className="flex-1 rounded-2xl border border-line bg-white px-4 py-4"
-          placeholder="Icon slug"
-          value={iconSlug}
-          onChangeText={setIconSlug}
-        />
-        <TextInput
-          className="w-32 rounded-2xl border border-line bg-white px-4 py-4"
-          placeholder="#0F766E"
-          value={color}
-          onChangeText={setColor}
+          className="min-h-28 rounded-2xl border border-border bg-surface px-4 py-4 text-ink"
+          placeholder="Shared with the family..."
+          placeholderTextColor="#525252"
+          multiline
+          textAlignVertical="top"
+          value={notes}
+          onChangeText={setNotes}
         />
       </View>
 
-      <TextInput
-        className="min-h-28 rounded-2xl border border-line bg-white px-4 py-4"
-        placeholder="Заметки"
-        multiline
-        textAlignVertical="top"
-        value={notes}
-        onChangeText={setNotes}
-      />
-
-      <Pressable className="rounded-2xl bg-accent px-5 py-4" onPress={submit}>
-        <Text className="text-center font-semibold text-white">{submitLabel}</Text>
-      </Pressable>
+      <AnimatedPressable className="rounded-2xl bg-accent px-5 py-4" onPress={submit}>
+        <Text className="text-center font-semibold text-bg">{submitLabel}</Text>
+      </AnimatedPressable>
     </ScrollView>
   );
 }

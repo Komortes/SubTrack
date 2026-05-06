@@ -1,4 +1,5 @@
 import { ScrollView, Text, View } from "react-native";
+import { FadeInView } from "@/components/FadeInView";
 import { daysUntil, formatMoney } from "@/lib/subscriptionMath";
 import { Subscription } from "@/lib/types";
 import { ServiceIcon } from "./ServiceIcon";
@@ -18,23 +19,22 @@ export function UpcomingList({ subscriptions }: Props) {
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
-      {upcoming.map((item) => {
+      {upcoming.map((item, index) => {
         const days = daysUntil(item.renewalDate);
+        const dayLabel = days === 0 ? "Сегодня" : `Через ${days} дн.`;
         return (
-          <View
-            key={item.id}
-            className={`w-40 rounded-2xl border p-4 ${days <= 0 ? "border-red-200 bg-red-50" : "border-line bg-white"}`}
-          >
-            <ServiceIcon name={item.name} iconSlug={item.iconSlug} color={item.color} size={36} />
-            <Text className="mt-3 font-semibold text-ink">{item.name}</Text>
-            <Text className="mt-1 text-sm text-muted">{formatMoney(item.amount, item.currency)}</Text>
-            <Text className={days <= 0 ? "mt-2 text-sm font-semibold text-danger" : "mt-2 text-sm text-muted"}>
-              {days === 0 ? "сегодня" : `через ${days} дней`}
+          <FadeInView key={item.id} index={index} className="w-40 rounded-2xl border border-border bg-surface p-4">
+            <Text className={`text-xs font-semibold uppercase tracking-widest ${days === 0 ? "text-danger" : "text-muted"}`}>
+              {dayLabel}
             </Text>
-          </View>
+            <View className="mt-3">
+              <ServiceIcon name={item.name} iconSlug={item.iconSlug} color={item.color} size={32} />
+            </View>
+            <Text className="mt-3 font-semibold text-ink">{item.name}</Text>
+            <Text className="mt-1 text-base font-bold text-ink">{formatMoney(item.amount, item.currency)}</Text>
+          </FadeInView>
         );
       })}
     </ScrollView>
   );
 }
-

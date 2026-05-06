@@ -10,7 +10,7 @@ export default function EditSubscriptionScreen() {
 
   if (!subscription) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
+      <View className="flex-1 items-center justify-center bg-bg px-6">
         <Text className="text-lg font-semibold text-ink">Подписка не найдена</Text>
       </View>
     );

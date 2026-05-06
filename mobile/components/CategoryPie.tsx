@@ -26,16 +26,16 @@ export function CategoryPie({ values }: Props) {
   const total = entries.reduce((sum, [, value]) => sum + value, 0);
 
   return (
-    <View className="rounded-2xl border border-line bg-white p-4">
-      <Text className="text-base font-semibold text-ink">По категориям</Text>
+    <View className="rounded-2xl border border-border bg-surface p-4">
+      <Text className="text-xs font-semibold uppercase tracking-widest text-muted">По категориям</Text>
       <View className="mt-4 gap-3">
         {entries.map(([key, value]) => (
           <View key={key}>
             <View className="flex-row justify-between">
               <Text className="text-sm text-ink">{labels[key] ?? key}</Text>
-              <Text className="text-sm font-medium text-ink">{formatMoney(value)}</Text>
+              <Text className="text-sm font-medium text-subtle">{formatMoney(value)}</Text>
             </View>
-            <View className="mt-2 h-2 overflow-hidden rounded-full bg-surface">
+            <View className="mt-2 h-2 overflow-hidden rounded-full bg-border">
               <View
                 className="h-2 rounded-full"
                 style={{ width: `${Math.round((value / total) * 100)}%`, backgroundColor: colors[key] }}
@@ -47,4 +47,3 @@ export function CategoryPie({ values }: Props) {
     </View>
   );
 }
-

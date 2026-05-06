@@ -1,31 +1,72 @@
+import { Feather } from "@expo/vector-icons";
 import { Link } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
+import { AnimatedPressable } from "@/components/AnimatedPressable";
+import { FadeInView } from "@/components/FadeInView";
+import { HeroPhone } from "@/components/HeroPhone";
 
-const slides = [
-  ["Все подписки в одном месте", "Сервисы, облака, инструменты и домены живут в одном списке."],
-  ["Никаких сюрпризов", "Напомним за 3 дня, за 1 день и в день списания."],
-  ["Сколько ты тратишь?", "Покажем месяц, год и категории без ручных таблиц."]
+type FeatherIcon = keyof typeof Feather.glyphMap;
+
+const features: { icon: FeatherIcon; label: string }[] = [
+  { icon: "bell",        label: "Авто\nуведомления" },
+  { icon: "trending-up", label: "Прогноз\nтрат" },
+  { icon: "shield",      label: "Личные\nданные" }
 ];
 
 export default function OnboardingScreen() {
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerClassName="px-6 py-16">
-      <View className="gap-5">
-        {slides.map(([title, body], index) => (
-          <View key={title} className="min-h-44 rounded-3xl bg-surface p-6">
-            <Text className="text-sm font-semibold text-accent">0{index + 1}</Text>
-            <Text className="mt-4 text-3xl font-bold text-ink">{title}</Text>
-            <Text className="mt-3 text-base leading-6 text-muted">{body}</Text>
+    <ScrollView className="flex-1 bg-bg" contentContainerClassName="pb-10 pt-16">
+
+      {/* Header */}
+      <FadeInView replayOnFocus={false} className="px-5">
+        <Text
+          style={{
+            fontSize: 10,
+            fontWeight: "700",
+            letterSpacing: 4,
+            textTransform: "uppercase",
+            color: "#2a2a2a"
+          }}
+        >
+          SubTrack
+        </Text>
+        <Text className="mt-3 text-5xl font-bold leading-[52px] tracking-tighter text-ink">
+          Подписки{"\n"}без сюрпризов
+        </Text>
+        <Text className="mt-4 text-base leading-7 text-subtle">
+          Контролируй списания, расходы и уведомления в одном интерфейсе.
+        </Text>
+      </FadeInView>
+
+      {/* 3D hero phone */}
+      <FadeInView index={1} replayOnFocus={false} className="mt-8 items-center">
+        <HeroPhone />
+      </FadeInView>
+
+      {/* Feature tiles */}
+      <FadeInView index={2} replayOnFocus={false} className="mt-6 flex-row gap-3 px-5">
+        {features.map((f, index) => (
+          <View key={f.label} className="flex-1 rounded-2xl border border-border bg-surface p-4">
+            <Feather name={f.icon} size={20} color="#a3a3a3" />
+            <Text className="mt-2 text-xs leading-4 text-muted">{f.label}</Text>
           </View>
         ))}
-      </View>
-      <Link href="/(auth)/register" className="mt-8 rounded-2xl bg-ink px-5 py-4 text-center font-semibold text-white">
-        Создать аккаунт
-      </Link>
-      <Link href="/(app)/(tabs)" className="mt-3 px-5 py-4 text-center font-semibold text-accent">
-        Продолжить офлайн
-      </Link>
+      </FadeInView>
+
+      {/* CTA buttons */}
+      <FadeInView index={3} replayOnFocus={false} className="mt-8 gap-3 px-5">
+        <Link href="/(auth)/register" asChild>
+          <AnimatedPressable className="rounded-2xl bg-accent px-5 py-4">
+            <Text className="text-center font-semibold text-bg">Создать аккаунт</Text>
+          </AnimatedPressable>
+        </Link>
+        <Link href="/(app)/(tabs)" asChild>
+          <AnimatedPressable className="rounded-2xl border border-border bg-surface px-5 py-4">
+            <Text className="text-center font-semibold text-subtle">Продолжить офлайн</Text>
+          </AnimatedPressable>
+        </Link>
+      </FadeInView>
+
     </ScrollView>
   );
 }
-

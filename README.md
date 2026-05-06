@@ -41,3 +41,18 @@ touch database/database.sqlite
 php artisan migrate
 php artisan serve --host=127.0.0.1 --port=8000
 ```
+
+For Expo Go on a physical phone, run the backend on the LAN interface and set the mobile API URL to the Mac IP:
+
+```sh
+cd backend
+php artisan serve --host=0.0.0.0 --port=8000
+```
+
+```sh
+cd mobile
+cp .env.device.example .env
+npm run start:device
+```
+
+For iOS Simulator, use `mobile/.env.example` and `npm run start:node22`.
