@@ -17,6 +17,8 @@ export const billingPeriods: Array<{ label: string; value: BillingPeriod }> = [
 
 export const currencies = ["CZK", "EUR", "USD"] as const;
 
+export const iconColors = ["#fafafa", "#ef4444", "#14b8a6", "#3b82f6", "#f59e0b", "#8b5cf6", "#22c55e"] as const;
+
 export const serviceSuggestions = [
   { name: "Spotify", iconSlug: "spotify", color: "#1DB954", category: "entertainment" },
   { name: "Netflix", iconSlug: "netflix", color: "#E50914", category: "entertainment" },
@@ -31,6 +33,23 @@ export const serviceSuggestions = [
   { name: "Notion", iconSlug: "notion", color: "#111827", category: "work" },
   { name: "Vercel", iconSlug: "vercel", color: "#111827", category: "cloud" },
   { name: "Cloudflare", iconSlug: "cloudflare", color: "#F97316", category: "cloud" }
+] as const;
+
+export const serviceIconOptions = [
+  { label: "Spotify", slug: "spotify" },
+  { label: "Netflix", slug: "netflix" },
+  { label: "YouTube", slug: "youtube" },
+  { label: "ChatGPT", slug: "chatgpt" },
+  { label: "Claude", slug: "claude" },
+  { label: "Figma", slug: "figma" },
+  { label: "Adobe", slug: "adobe" },
+  { label: "iCloud", slug: "icloud" },
+  { label: "Dropbox", slug: "dropbox" },
+  { label: "GitHub", slug: "github" },
+  { label: "Notion", slug: "notion" },
+  { label: "Vercel", slug: "vercel" },
+  { label: "Cloudflare", slug: "cloudflare" },
+  { label: "Буква", slug: "" }
 ] as const;
 
 export const categoryLabels = Object.fromEntries(categories.map((item) => [item.value, item.label])) as Record<

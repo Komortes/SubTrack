@@ -1,9 +1,10 @@
 import { Feather } from "@expo/vector-icons";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { FadeInView } from "@/components/FadeInView";
 import { HeroPhone } from "@/components/HeroPhone";
+import { useAuthStore } from "@/store/authStore";
 
 type FeatherIcon = keyof typeof Feather.glyphMap;
 
@@ -14,6 +15,13 @@ const features: { icon: FeatherIcon; label: string }[] = [
 ];
 
 export default function OnboardingScreen() {
+  const enableOfflineMode = useAuthStore((state) => state.useOfflineMode);
+
+  async function continueOffline() {
+    await enableOfflineMode();
+    router.replace("/(app)/(tabs)");
+  }
+
   return (
     <ScrollView className="flex-1 bg-bg" contentContainerClassName="pb-10 pt-16">
 
@@ -60,11 +68,9 @@ export default function OnboardingScreen() {
             <Text className="text-center font-semibold text-bg">Создать аккаунт</Text>
           </AnimatedPressable>
         </Link>
-        <Link href="/(app)/(tabs)" asChild>
-          <AnimatedPressable className="rounded-2xl border border-border bg-surface px-5 py-4">
-            <Text className="text-center font-semibold text-subtle">Продолжить офлайн</Text>
-          </AnimatedPressable>
-        </Link>
+        <AnimatedPressable className="rounded-2xl border border-border bg-surface px-5 py-4" onPress={continueOffline}>
+          <Text className="text-center font-semibold text-subtle">Продолжить офлайн</Text>
+        </AnimatedPressable>
       </FadeInView>
 
     </ScrollView>

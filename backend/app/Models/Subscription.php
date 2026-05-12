@@ -14,6 +14,7 @@ class Subscription extends Model
     use HasUuids;
 
     protected $fillable = [
+        'id',
         'user_id',
         'name',
         'amount',
@@ -42,5 +43,10 @@ class Subscription extends Model
     public function notificationLogs(): HasMany
     {
         return $this->hasMany(NotificationLog::class);
+    }
+
+    public function paymentRecords(): HasMany
+    {
+        return $this->hasMany(PaymentRecord::class)->latest('paid_at');
     }
 }

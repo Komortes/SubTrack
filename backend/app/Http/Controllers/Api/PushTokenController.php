@@ -23,9 +23,8 @@ class PushTokenController extends Controller
     public function destroy(Request $request)
     {
         $request->validate(['token' => ['required', 'string']]);
-        $request->user()->pushTokens()->where('token', $request->string('token'))->delete();
+        $request->user()->pushTokens()->where('token', (string) $request->string('token'))->delete();
 
         return response()->noContent();
     }
 }
-

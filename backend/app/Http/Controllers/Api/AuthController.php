@@ -50,4 +50,16 @@ class AuthController extends Controller
 
         return response()->noContent();
     }
+
+    public function me(Request $request)
+    {
+        return $request->user();
+    }
+
+    public function destroyAccount(Request $request)
+    {
+        $request->user()->delete();
+
+        return response()->noContent();
+    }
 }

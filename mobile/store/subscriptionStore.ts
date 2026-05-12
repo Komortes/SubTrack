@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import * as api from "@/lib/api";
 import { seedSubscriptions } from "@/lib/seed";
+import { enqueueMutation, flushOfflineQueue, getOfflineQueueSize } from "@/lib/sync";
 import { nextRenewalDate } from "@/lib/subscriptionMath";
 import { Subscription } from "@/lib/types";
 
@@ -10,12 +11,17 @@ type SubscriptionState = {
   subscriptions: Subscription[];
   isSyncing: boolean;
   syncError: string | null;
+  pendingSyncCount: number;
+  refreshPendingSyncCount: () => Promise<void>;
   setSubscriptions: (subscriptions: Subscription[]) => void;
+  resetSubscriptions: () => void;
   syncFromServer: () => Promise<void>;
   addSubscription: (subscription: Subscription) => void;
+  refreshSubscription: (id: string) => Promise<void>;
   createSubscription: (subscription: Omit<Subscription, "id" | "createdAt">) => Promise<void>;
-  updateSubscription: (id: string, patch: Partial<Subscription>) => void;
-  deleteSubscription: (id: string) => void;
+  updateSubscription: (id: string, patch: Partial<Subscription>) => Promise<void>;
+  deleteSubscription: (id: string) => Promise<void>;
+  deleteAllSubscriptions: () => Promise<void>;
   markPaid: (id: string, syncWithServer?: boolean) => Promise<void>;
 };
 
@@ -25,12 +31,25 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       subscriptions: seedSubscriptions,
       isSyncing: false,
       syncError: null,
+      pendingSyncCount: 0,
+      refreshPendingSyncCount: async () => {
+        set({ pendingSyncCount: await getOfflineQueueSize() });
+      },
       setSubscriptions: (subscriptions) => set({ subscriptions }),
+      resetSubscriptions: () => set({ subscriptions: [], isSyncing: false, syncError: null, pendingSyncCount: 0 }),
+      refreshSubscription: async (id) => {
+        const subscription = await api.fetchSubscription(id);
+        set((state) => ({
+          subscriptions: state.subscriptions.map((item) => (item.id === id ? subscription : item)),
+          syncError: null
+        }));
+      },
       syncFromServer: async () => {
         set({ isSyncing: true, syncError: null });
         try {
+          await flushOfflineQueue();
           const subscriptions = await api.fetchSubscriptions();
-          set({ subscriptions, isSyncing: false });
+          set({ subscriptions, isSyncing: false, pendingSyncCount: await getOfflineQueueSize() });
         } catch (error) {
           set({
             isSyncing: false,
@@ -42,37 +61,106 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       addSubscription: (subscription) =>
         set((state) => ({ subscriptions: [subscription, ...state.subscriptions] })),
       createSubscription: async (subscription) => {
-        set({ isSyncing: true, syncError: null });
+        const localId = createLocalId();
+        const localSubscription: Subscription = {
+          ...subscription,
+          id: localId,
+          createdAt: new Date().toISOString()
+        };
+
+        set((state) => ({
+          subscriptions: [localSubscription, ...state.subscriptions],
+          isSyncing: true,
+          syncError: null
+        }));
+
         try {
-          const created = await api.createSubscription(subscription);
+          const created = await api.createSubscription({ ...subscription, id: localId });
           set((state) => ({
             subscriptions: [created, ...state.subscriptions.filter((item) => item.id !== created.id)],
             isSyncing: false
           }));
         } catch (error) {
-          const localSubscription: Subscription = {
-            ...subscription,
-            id: `${subscription.name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
+          await enqueueMutation({
+            id: createLocalId(),
+            method: "POST",
+            path: "/subscriptions",
+            payload: api.toApiSubscription({ ...localSubscription }),
             createdAt: new Date().toISOString()
-          };
-
-          set((state) => ({
-            subscriptions: [localSubscription, ...state.subscriptions],
+          });
+          set({
             isSyncing: false,
-            syncError: error instanceof Error ? error.message : "Сохранено локально"
-          }));
+            pendingSyncCount: await getOfflineQueueSize(),
+            syncError: error instanceof Error ? `${error.message}. Сохранено локально` : "Сохранено локально"
+          });
         }
       },
-      updateSubscription: (id, patch) =>
+      updateSubscription: async (id, patch) => {
         set((state) => ({
           subscriptions: state.subscriptions.map((item) =>
             item.id === id ? { ...item, ...patch } : item
           )
-        })),
-      deleteSubscription: (id) =>
+        }));
+
+        try {
+          const updated = await api.updateSubscription(id, patch);
+          set((state) => ({
+            subscriptions: state.subscriptions.map((item) => (item.id === id ? updated : item)),
+            syncError: null
+          }));
+        } catch (error) {
+          await enqueueMutation({
+            id: createLocalId(),
+            method: "PUT",
+            path: `/subscriptions/${id}`,
+            payload: api.toApiSubscription(patch),
+            createdAt: new Date().toISOString()
+          });
+          set({
+            pendingSyncCount: await getOfflineQueueSize(),
+            syncError: error instanceof Error ? `${error.message}. Изменения в очереди` : "Изменения в очереди"
+          });
+        }
+      },
+      deleteSubscription: async (id) => {
         set((state) => ({
           subscriptions: state.subscriptions.filter((item) => item.id !== id)
-        })),
+        }));
+
+        try {
+          await api.deleteSubscription(id);
+          set({ syncError: null });
+        } catch (error) {
+          await enqueueMutation({
+            id: createLocalId(),
+            method: "DELETE",
+            path: `/subscriptions/${id}`,
+            createdAt: new Date().toISOString()
+          });
+          set({
+            pendingSyncCount: await getOfflineQueueSize(),
+            syncError: error instanceof Error ? `${error.message}. Удаление в очереди` : "Удаление в очереди"
+          });
+        }
+      },
+      deleteAllSubscriptions: async () => {
+        set({ subscriptions: [], syncError: null });
+
+        try {
+          await api.deleteAllSubscriptions();
+        } catch (error) {
+          await enqueueMutation({
+            id: createLocalId(),
+            method: "DELETE",
+            path: "/subscriptions",
+            createdAt: new Date().toISOString()
+          });
+          set({
+            pendingSyncCount: await getOfflineQueueSize(),
+            syncError: error instanceof Error ? `${error.message}. Очистка в очереди` : "Очистка в очереди"
+          });
+        }
+      },
       markPaid: async (id, syncWithServer = true) => {
         if (syncWithServer) {
           try {
@@ -83,13 +171,37 @@ export const useSubscriptionStore = create<SubscriptionState>()(
             }));
             return;
           } catch (error) {
-            set({ syncError: error instanceof Error ? error.message : "Оплата отмечена локально" });
+            await enqueueMutation({
+              id: createLocalId(),
+              method: "POST",
+              path: `/subscriptions/${id}/renew`,
+              createdAt: new Date().toISOString()
+            });
+            set({
+              pendingSyncCount: await getOfflineQueueSize(),
+              syncError: error instanceof Error ? error.message : "Оплата отмечена локально"
+            });
           }
         }
 
         set((state) => ({
           subscriptions: state.subscriptions.map((item) =>
-            item.id === id ? { ...item, renewalDate: nextRenewalDate(item) } : item
+            item.id === id
+              ? {
+                  ...item,
+                  renewalDate: nextRenewalDate(item),
+                  paymentHistory: [
+                    {
+                      id: createLocalId(),
+                      subscriptionId: item.id,
+                      paidAt: new Date().toISOString(),
+                      amount: item.amount,
+                      currency: item.currency
+                    },
+                    ...(item.paymentHistory ?? [])
+                  ].slice(0, 5)
+                }
+              : item
           )
         }));
       }
@@ -100,3 +212,11 @@ export const useSubscriptionStore = create<SubscriptionState>()(
     }
   )
 );
+
+function createLocalId(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+    const value = Math.floor(Math.random() * 16);
+    const resolved = char === "x" ? value : (value & 0x3) | 0x8;
+    return resolved.toString(16);
+  });
+}

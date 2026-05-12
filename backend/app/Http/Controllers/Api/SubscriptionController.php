@@ -25,7 +25,7 @@ class SubscriptionController extends Controller
     {
         $this->authorizeUser($request, $subscription);
 
-        return $subscription;
+        return $subscription->load(['paymentRecords' => fn ($query) => $query->limit(5)]);
     }
 
     public function update(Request $request, Subscription $subscription)
@@ -33,13 +33,20 @@ class SubscriptionController extends Controller
         $this->authorizeUser($request, $subscription);
         $subscription->update($this->validateSubscription($request, partial: true));
 
-        return $subscription;
+        return $subscription->load(['paymentRecords' => fn ($query) => $query->limit(5)]);
     }
 
     public function destroy(Request $request, Subscription $subscription)
     {
         $this->authorizeUser($request, $subscription);
         $subscription->delete();
+
+        return response()->noContent();
+    }
+
+    public function destroyAll(Request $request)
+    {
+        $request->user()->subscriptions()->delete();
 
         return response()->noContent();
     }
@@ -56,6 +63,7 @@ class SubscriptionController extends Controller
         $required = $partial ? 'sometimes' : 'required';
 
         return $request->validate([
+            'id' => ['sometimes', 'uuid', 'unique:subscriptions,id'],
             'name' => [$required, 'string', 'max:120'],
             'amount' => [$required, 'numeric', 'min:0'],
             'currency' => [$required, 'in:CZK,EUR,USD'],
@@ -75,4 +83,3 @@ class SubscriptionController extends Controller
         abort_unless($subscription->user_id === $request->user()->id, 404);
     }
 }
-

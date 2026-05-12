@@ -11,6 +11,13 @@ class SubscriptionService
     {
         $date = CarbonImmutable::parse($subscription->renewal_date);
 
+        $subscription->paymentRecords()->create([
+            'user_id' => $subscription->user_id,
+            'paid_at' => now(),
+            'amount' => $subscription->amount,
+            'currency' => $subscription->currency,
+        ]);
+
         $subscription->renewal_date = match ($subscription->billing_period) {
             'weekly' => $date->addWeek(),
             'yearly' => $date->addYear(),
@@ -20,7 +27,7 @@ class SubscriptionService
 
         $subscription->save();
 
-        return $subscription;
+        return $subscription->load(['paymentRecords' => fn ($query) => $query->limit(5)]);
     }
 
     public function monthlyAmount(Subscription $subscription): float
@@ -37,4 +44,3 @@ class SubscriptionService
         };
     }
 }
-

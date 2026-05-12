@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Tabs } from "expo-router";
 import { useEffect } from "react";
@@ -9,6 +10,10 @@ import Animated, {
   withSpring,
   withTiming
 } from "react-native-reanimated";
+import { clearLocalRenewalNotifications, syncLocalRenewalNotifications } from "@/lib/notifications";
+import { useAuthStore } from "@/store/authStore";
+import { useSettingsStore } from "@/store/settingsStore";
+import { useSubscriptionStore } from "@/store/subscriptionStore";
 
 type FeatherIcon = keyof typeof Feather.glyphMap;
 
@@ -70,6 +75,12 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const { width: screenWidth } = useWindowDimensions();
   const barWidth = screenWidth - 32;
   const tabWidth = (barWidth - H_PAD * 2) / state.routes.length;
+  const activeRoute = state.routes[state.index];
+  const nestedRouteName = activeRoute ? getFocusedRouteNameFromRoute(activeRoute) : undefined;
+  const shouldHide =
+    activeRoute?.name === "subscriptions" &&
+    nestedRouteName !== undefined &&
+    nestedRouteName !== "index";
 
   // Dot slides to center of active tab
   const dotX = useSharedValue(H_PAD + state.index * tabWidth + tabWidth / 2 - DOT_SIZE / 2);
@@ -84,6 +95,10 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const dotStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: dotX.value }]
   }));
+
+  if (shouldHide) {
+    return null;
+  }
 
   return (
     <View
@@ -147,13 +162,33 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export default function TabsLayout() {
+  const subscriptions = useSubscriptionStore((state) => state.subscriptions);
+  const isOfflineMode = useAuthStore((state) => state.isOfflineMode);
+  const notifyThreeDays = useSettingsStore((state) => state.notifyThreeDays);
+  const notifyOneDay = useSettingsStore((state) => state.notifyOneDay);
+  const notifySameDay = useSettingsStore((state) => state.notifySameDay);
+  const notificationTime = useSettingsStore((state) => state.notificationTime);
+
+  useEffect(() => {
+    if (!isOfflineMode) {
+      clearLocalRenewalNotifications().catch(() => undefined);
+      return;
+    }
+
+    syncLocalRenewalNotifications(subscriptions, {
+      notifyThreeDays,
+      notifyOneDay,
+      notifySameDay,
+      notificationTime
+    }).catch(() => undefined);
+  }, [isOfflineMode, notificationTime, notifyOneDay, notifySameDay, notifyThreeDays, subscriptions]);
+
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        lazy: false,
-        sceneContainerStyle: { backgroundColor: "#0a0a0a" }
+        lazy: false
       }}
     >
       <Tabs.Screen name="index" />

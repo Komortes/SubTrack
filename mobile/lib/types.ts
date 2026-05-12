@@ -16,6 +16,7 @@ export type Subscription = {
   notes?: string;
   isActive: boolean;
   createdAt: string;
+  paymentHistory?: PaymentRecord[];
 };
 
 export type PaymentRecord = {
@@ -25,4 +26,3 @@ export type PaymentRecord = {
   amount: number;
   currency: Subscription["currency"];
 };
-

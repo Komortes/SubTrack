@@ -22,8 +22,8 @@ export default function EditSubscriptionScreen() {
       <SubscriptionForm
         initialValue={subscription}
         submitLabel="Сохранить изменения"
-        onSubmit={(value) => {
-          updateSubscription(subscription.id, value);
+        onSubmit={async (value) => {
+          await updateSubscription(subscription.id, value);
           router.back();
         }}
       />

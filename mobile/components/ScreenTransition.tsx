@@ -32,7 +32,7 @@ export function ScreenTransition({ children, className, style }: Props) {
   );
 
   return (
-    <Animated.View className={className} style={[{ flex: 1 }, animatedStyle, style]}>
+    <Animated.View className={className} style={[{ flex: 1, backgroundColor: "#0a0a0a" }, animatedStyle, style]}>
       {children}
     </Animated.View>
   );

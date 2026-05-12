@@ -5,7 +5,7 @@ import { FadeInView } from "@/components/FadeInView";
 import { ScreenTransition } from "@/components/ScreenTransition";
 import { CategoryPie } from "@/components/CategoryPie";
 import { MonthlyChart } from "@/components/MonthlyChart";
-import { formatMoney } from "@/lib/subscriptionMath";
+import { formatMoney, normalizeMonthlyAmount } from "@/lib/subscriptionMath";
 import { useAnalytics } from "@/hooks/useAnalytics";
 
 const periods = ["Месяц", "Квартал", "Год"] as const;
@@ -22,9 +22,11 @@ const categoryLabelMap: Record<string, string> = {
 
 export default function StatsScreen() {
   const [period, setPeriod] = useState<(typeof periods)[number]>("Месяц");
-  const { monthlyTotal, activeCount, byCategory } = useAnalytics();
+  const { monthlyTotal, yearlyTotal, activeCount, byCategory, monthlyHistory, analyticsError, topSubscriptions } = useAnalytics();
 
-  const averagePerSub = activeCount > 0 ? monthlyTotal / activeCount : 0;
+  const periodMultiplier = period === "Месяц" ? 1 : period === "Квартал" ? 3 : 12;
+  const periodTotal = period === "Год" ? yearlyTotal : monthlyTotal * periodMultiplier;
+  const averagePerSub = activeCount > 0 ? periodTotal / activeCount : 0;
 
   const categoryBreakdownItems = Object.entries(byCategory)
     .map(([key, amount]) => ({ label: categoryLabelMap[key] ?? key, amount }))
@@ -54,13 +56,14 @@ export default function StatsScreen() {
 
         {/* Total spend hero */}
         <FadeInView index={0} className="rounded-2xl border border-border bg-surface p-5">
-          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">Total Spend</Text>
+          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">Total Spend · {period}</Text>
           <View className="mt-2 flex-row items-end gap-2">
             <Text className="text-4xl font-bold tracking-tighter text-ink">
-              {new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 0 }).format(monthlyTotal)}
+              {new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 0 }).format(periodTotal)}
             </Text>
             <Text className="mb-1 text-xl font-semibold text-muted">CZK</Text>
           </View>
+          {analyticsError ? <Text className="mt-3 text-xs text-danger">{analyticsError}</Text> : null}
         </FadeInView>
 
         {/* Average + Count */}
@@ -86,7 +89,7 @@ export default function StatsScreen() {
         {/* Last 6 months chart */}
         <FadeInView index={3} className="rounded-2xl border border-border bg-surface p-4">
           <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Last 6 Months</Text>
-          <MonthlyChart monthlyTotal={monthlyTotal} />
+          <MonthlyChart data={monthlyHistory} monthlyTotal={monthlyTotal} />
         </FadeInView>
 
         {/* Category breakdown — no card, on dark background */}
@@ -117,8 +120,28 @@ export default function StatsScreen() {
           <CategoryPie values={byCategory} />
         </FadeInView>
 
+        <FadeInView index={6} className="rounded-2xl border border-border bg-surface p-5">
+          <Text className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted">Топ подписок</Text>
+          <View className="gap-3">
+            {topSubscriptions.slice(0, 5).map((subscription) => {
+              const monthly = normalizeMonthlyAmount(subscription);
+              return (
+                <View key={subscription.id} className="flex-row items-center justify-between gap-3">
+                  <View className="flex-1">
+                    <Text className="font-semibold text-ink">{subscription.name}</Text>
+                    <Text className="mt-0.5 text-xs text-muted">
+                      {formatMoney(subscription.amount, subscription.currency)} · {formatMoney(monthly, subscription.currency)}/мес
+                    </Text>
+                  </View>
+                  <Text className="font-bold text-subtle">{formatMoney(monthly * periodMultiplier, subscription.currency)}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </FadeInView>
+
         {/* Forecast — white card */}
-        <FadeInView index={6}>
+        <FadeInView index={7}>
           <View className="rounded-2xl bg-ink p-5">
             <Text className="text-xs font-semibold uppercase tracking-widest text-bg/50">Forecast</Text>
             <View className="mt-2 flex-row items-center justify-between">
