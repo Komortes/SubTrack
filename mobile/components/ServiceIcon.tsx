@@ -7,6 +7,7 @@ const BRAND_COLORS: Record<string, string> = {
   youtube: "#ff0000",
   github: "#24292e",
   apple: "#555555",
+  appletv: "#000000",
   adobe: "#ff0000",
   dropbox: "#0061ff",
   notion: "#000000",
@@ -21,7 +22,16 @@ const BRAND_COLORS: Record<string, string> = {
   claude: "#d97706",
   icloud: "#3478f6",
   vercel: "#000000",
-  cloudflare: "#f97316"
+  cloudflare: "#f97316",
+  twitch: "#9146ff",
+  twitter: "#000000",
+  telegram: "#2ca5e0",
+  whatsapp: "#25d366",
+  instagram: "#e1306c",
+  linkedin: "#0a66c2",
+  facebook: "#1877f2",
+  disney: "#113ccf",
+  linear: "#5e6ad2"
 };
 
 // Only icons confirmed present in MaterialCommunityIcons glyph map
@@ -34,7 +44,18 @@ const MCI_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = 
   icloud: "apple-icloud",
   slack: "slack",
   microsoft: "microsoft",
-  google: "google"
+  google: "google",
+  apple: "apple",
+  appletv: "apple",
+  discord: "discord",
+  amazon: "amazon",
+  twitch: "twitch",
+  twitter: "twitter",
+  telegram: "telegram",
+  whatsapp: "whatsapp",
+  instagram: "instagram",
+  linkedin: "linkedin",
+  facebook: "facebook"
 };
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -43,8 +64,11 @@ const SERVICE_LABELS: Record<string, string> = {
   claude: "Cl",
   notion: "N",
   figma: "F",
+  adobe: "Ai",
   vercel: "▲",
-  cloudflare: "CF"
+  cloudflare: "CF",
+  disney: "D+",
+  linear: "Li"
 };
 
 type Props = {
@@ -57,7 +81,7 @@ type Props = {
 export function ServiceIcon({ name, iconSlug, color, size = 44 }: Props) {
   const key = (iconSlug ?? name).toLowerCase().replace(/\s+/g, "");
   const backgroundColor = BRAND_COLORS[key] ?? color ?? "#262626";
-  const needsBorder = ["github", "notion", "vercel"].includes(key);
+  const needsBorder = ["github", "notion", "vercel", "twitter", "appletv", "chatgpt", "openai"].includes(key);
   const mciIcon = iconSlug ? MCI_ICONS[iconSlug] : undefined;
   const iconSize = Math.round(size * 0.52);
 

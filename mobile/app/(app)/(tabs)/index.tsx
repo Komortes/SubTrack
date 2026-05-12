@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { FadeInView } from "@/components/FadeInView";
@@ -118,14 +118,20 @@ export default function HomeScreen() {
         ) : null}
         <View>
           <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Ближайшие списания</Text>
-          <UpcomingList subscriptions={activeSubscriptions} />
+          <UpcomingList
+            subscriptions={activeSubscriptions}
+            onPress={(id) => router.push(`/(app)/(tabs)/subscriptions/${id}`)}
+          />
         </View>
         <View>
           <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Недавно добавленные</Text>
           <View className="gap-3">
             {recentlyAdded.map((item, index) => (
               <FadeInView key={item.id} index={index}>
-                <SubscriptionCard subscription={item} />
+                <SubscriptionCard
+                  subscription={item}
+                  onPress={() => router.push(`/(app)/(tabs)/subscriptions/${item.id}`)}
+                />
               </FadeInView>
             ))}
           </View>

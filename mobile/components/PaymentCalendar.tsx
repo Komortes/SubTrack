@@ -1,4 +1,5 @@
-import { Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, Text, View } from "react-native";
 import { Subscription } from "@/lib/types";
 
 type Props = {
@@ -8,6 +9,8 @@ type Props = {
 const DAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
 export function PaymentCalendar({ subscriptions }: Props) {
+  const [expanded, setExpanded] = useState(false);
+
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth();
@@ -41,14 +44,20 @@ export function PaymentCalendar({ subscriptions }: Props) {
     weeks.push(week);
   }
 
+  const todayWeekIndex = weeks.findIndex((w) => w.includes(todayDate));
+  const displayWeeks = expanded ? weeks : weeks.slice(todayWeekIndex, todayWeekIndex + 1);
   const monthName = today.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
 
   return (
     <View className="rounded-3xl border border-border bg-surface p-5">
-      <View className="mb-4 flex-row items-center justify-between">
-        <Text className="text-xs font-semibold uppercase tracking-widest text-muted">Календарь</Text>
-        <Text className="text-xs capitalize text-subtle">{monthName}</Text>
-      </View>
+      <Pressable onPress={() => setExpanded((v) => !v)}>
+        <View className="mb-4 flex-row items-center justify-between">
+          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">Календарь</Text>
+          <Text className="text-xs capitalize text-subtle">
+            {expanded ? monthName : "Показать месяц"}
+          </Text>
+        </View>
+      </Pressable>
 
       <View className="mb-2 flex-row">
         {DAY_LABELS.map((label) => (
@@ -58,7 +67,7 @@ export function PaymentCalendar({ subscriptions }: Props) {
         ))}
       </View>
 
-      {weeks.map((weekRow, wi) => (
+      {displayWeeks.map((weekRow, wi) => (
         <View key={wi} className="mb-1 flex-row">
           {weekRow.map((day, di) => {
             const isToday = day === todayDate;
@@ -95,6 +104,12 @@ export function PaymentCalendar({ subscriptions }: Props) {
           })}
         </View>
       ))}
+
+      {!expanded && weeks.length > 1 ? (
+        <Pressable onPress={() => setExpanded(true)} className="mt-2 items-center">
+          <Text className="text-xs text-muted">Показать весь месяц</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

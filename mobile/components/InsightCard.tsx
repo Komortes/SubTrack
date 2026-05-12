@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { Text, View } from "react-native";
-import { daysUntil, formatMoney, normalizeMonthlyAmount } from "@/lib/subscriptionMath";
+import { formatMoney, normalizeMonthlyAmount } from "@/lib/subscriptionMath";
 import { Subscription } from "@/lib/types";
 import { convertAmount, useCurrencyStore } from "@/store/currencyStore";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -29,22 +29,7 @@ export function InsightCard({ subscriptions }: Props) {
       monthly: convertAmount(normalizeMonthlyAmount(s), s.currency, primaryCurrency, rates),
     }));
 
-    // Upcoming in the next 3 days
-    const soon = active.filter((s) => {
-      const d = daysUntil(s.renewalDate);
-      return d >= 0 && d <= 3;
-    });
-    if (soon.length > 0) {
-      const names = soon.slice(0, 2).map((s) => s.name).join(", ");
-      const suffix = soon.length > 2 ? ` +${soon.length - 2}` : "";
-      return {
-        icon: "clock",
-        label: "Скоро списание",
-        value: `${names}${suffix}`,
-      };
-    }
-
-    // Most expensive day
+    // Most expensive renewal day this month
     const byDay = new Map<number, number>();
     for (const s of withMonthly) {
       const d = new Date(`${s.renewalDate}T00:00:00`);
@@ -60,7 +45,13 @@ export function InsightCard({ subscriptions }: Props) {
       };
     }
 
-    return null;
+    // Fallback: most expensive subscription
+    const top = [...withMonthly].sort((a, b) => b.monthly - a.monthly)[0];
+    return {
+      icon: "star",
+      label: "Самая дорогая",
+      value: `${top.name} · ${formatMoney(top.monthly, primaryCurrency)}/мес`,
+    };
   }, [subscriptions, primaryCurrency, rates]);
 
   if (!insight) return null;
