@@ -8,6 +8,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { shareSubscriptionsCsv } from "@/lib/exportCsv";
 import { syncLocalRenewalNotifications } from "@/lib/notifications";
 import { useAuthStore } from "@/store/authStore";
+import { useCurrencyStore } from "@/store/currencyStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useSubscriptionStore } from "@/store/subscriptionStore";
 
@@ -17,7 +18,7 @@ const dateFormats = ["DD.MM.YYYY", "MM/DD/YYYY", "YYYY-MM-DD"] as const;
 const themes = ["system", "dark", "light"] as const;
 
 function Divider() {
-  return <View className="mx-4 h-px bg-border" />;
+  return <View className="mx-5 h-px bg-border" />;
 }
 
 function SettingsRow({
@@ -37,25 +38,25 @@ function SettingsRow({
 }) {
   const content = (
     <>
-      <View className="flex-1">
+      <View className="flex-1 pr-3">
         <Text className={`text-base ${danger ? "text-danger" : "text-ink"}`}>{label}</Text>
         {sublabel ? <Text className="mt-0.5 text-xs text-muted">{sublabel}</Text> : null}
       </View>
-      {value ? <Text className="mr-2 text-subtle">{value}</Text> : null}
+      {value ? <Text className="mr-2 text-sm text-subtle">{value}</Text> : null}
       {right}
     </>
   );
 
   if (onPress) {
     return (
-      <TouchableOpacity className="flex-row items-center justify-between px-4 py-3" onPress={onPress}>
+      <TouchableOpacity className="flex-row items-center justify-between px-5 py-4" onPress={onPress}>
         {content}
       </TouchableOpacity>
     );
   }
 
   return (
-    <View className="flex-row items-center justify-between px-4 py-3">
+    <View className="flex-row items-center justify-between px-5 py-4">
       {content}
     </View>
   );
@@ -63,7 +64,7 @@ function SettingsRow({
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <Text className="mb-2 mt-5 px-1 text-xs font-semibold uppercase tracking-widest text-muted">{title}</Text>
+    <Text className="mb-2 mt-7 px-1 text-sm font-semibold text-muted">{title}</Text>
   );
 }
 
@@ -81,12 +82,18 @@ export default function SettingsScreen() {
   const updateSettings = useSettingsStore((state) => state.updateSettings);
   const syncSettings = useSettingsStore((state) => state.syncFromServer);
   const resetSettings = useSettingsStore((state) => state.resetSettings);
+  const email = useAuthStore((state) => state.email);
   const subscriptions = useSubscriptionStore((state) => state.subscriptions);
   const pendingSyncCount = useSubscriptionStore((state) => state.pendingSyncCount);
   const refreshPendingSyncCount = useSubscriptionStore((state) => state.refreshPendingSyncCount);
   const syncSubscriptions = useSubscriptionStore((state) => state.syncFromServer);
   const deleteAllSubscriptions = useSubscriptionStore((state) => state.deleteAllSubscriptions);
   const resetSubscriptions = useSubscriptionStore((state) => state.resetSubscriptions);
+  const rates = useCurrencyStore((state) => state.rates);
+  const lastUpdated = useCurrencyStore((state) => state.lastUpdated);
+  const isFetchingRates = useCurrencyStore((state) => state.isFetching);
+  const fetchRates = useCurrencyStore((state) => state.fetchRates);
+  const setRate = useCurrencyStore((state) => state.setRate);
   const { register, sendTestNotification } = usePushNotifications();
 
   useEffect(() => {
@@ -157,6 +164,31 @@ export default function SettingsScreen() {
     await shareSubscriptionsCsv(subscriptions);
   }
 
+  async function exportByEmail() {
+    await shareSubscriptionsCsv(subscriptions);
+  }
+
+  function editRate(currency: "EUR" | "USD") {
+    Alert.prompt(
+      `Курс ${currency}`,
+      `Сколько крон за 1 ${currency}`,
+      (text) => {
+        const value = parseFloat(text.replace(",", "."));
+        if (!isNaN(value) && value > 0) setRate(currency, value);
+      },
+      "plain-text",
+      String(rates[currency])
+    );
+  }
+
+  async function refreshRates() {
+    try {
+      await fetchRates(true);
+    } catch {
+      Alert.alert("Не удалось обновить", "Проверь подключение к интернету.");
+    }
+  }
+
   async function syncNow() {
     if (isOfflineMode) {
       Alert.alert("Офлайн режим", "Синхронизация доступна после входа в аккаунт.");
@@ -174,7 +206,11 @@ export default function SettingsScreen() {
   }
 
   async function removeAccount() {
-    await deleteAccount();
+    try {
+      await deleteAccount();
+    } catch {
+      // server may be unreachable; local cleanup already happened in the store
+    }
     resetSubscriptions();
     resetSettings();
     router.replace("/onboarding");
@@ -183,7 +219,14 @@ export default function SettingsScreen() {
   function confirmLogout() {
     Alert.alert("Выйти?", "Локальные данные останутся на устройстве.", [
       { text: "Отмена", style: "cancel" },
-      { text: "Выйти", style: "destructive", onPress: () => logout().catch(() => undefined) }
+      {
+        text: "Выйти",
+        style: "destructive",
+        onPress: async () => {
+          await logout().catch(() => undefined);
+          router.replace("/onboarding");
+        }
+      }
     ]);
   }
 
@@ -203,26 +246,33 @@ export default function SettingsScreen() {
 
   return (
     <ScreenTransition className="flex-1 bg-bg">
-      <ScrollView className="flex-1 bg-bg" contentContainerClassName="px-5 pb-10 pt-16">
-        <Text className="mb-1 text-3xl font-bold tracking-tight text-ink">Настройки</Text>
+      <ScrollView className="flex-1 bg-bg" contentContainerClassName="px-5 pb-36 pt-16">
+        <Text className="text-3xl font-bold tracking-tight text-ink">Настройки</Text>
+        <Text className="mb-1 mt-1 text-subtle">Аккаунт, уведомления, данные</Text>
 
         <FadeInView index={0}>
           <SectionHeader title="Аккаунт" />
           <View className="overflow-hidden rounded-2xl border border-border bg-surface">
             <SettingsRow
               label="Офлайн режим"
+              sublabel={isOfflineMode ? "Данные хранятся локально" : "Синхронизация с сервером активна"}
               right={
                 <Switch
                   value={!!isOfflineMode}
+                  onValueChange={(value) => {
+                    if (value) {
+                      confirmLogout();
+                    } else {
+                      router.replace("/(auth)/login");
+                    }
+                  }}
                   thumbColor="#fafafa"
                   trackColor={{ false: "#1f1f1f", true: "#525252" }}
                 />
               }
             />
             <Divider />
-            <TouchableOpacity onPress={confirmLogout}>
-              <SettingsRow label="Выйти" danger right={<Text className="text-lg text-danger">→</Text>} />
-            </TouchableOpacity>
+            <SettingsRow label="Выйти" danger right={<Text className="text-lg text-danger">→</Text>} onPress={confirmLogout} />
             <Divider />
             <SettingsRow
               label="Удалить аккаунт"
@@ -281,18 +331,20 @@ export default function SettingsScreen() {
               onPress={() => chooseSetting("Время уведомления", notificationTimes, notificationTime, (value) => setSetting({ notificationTime: value }))}
             />
           </View>
-          <AnimatedPressable
-            className="mt-3 rounded-xl bg-accent px-4 py-3"
-            onPress={enableNotifications}
-          >
-            <Text className="text-center font-semibold text-bg">Включить уведомления</Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            className="mt-3 rounded-xl border border-border bg-surface px-4 py-3"
-            onPress={testNotification}
-          >
-            <Text className="text-center font-semibold text-ink">Тест уведомления</Text>
-          </AnimatedPressable>
+          <View className="mt-3 flex-row gap-3">
+            <AnimatedPressable
+              className="flex-1 rounded-xl bg-accent px-4 py-3.5"
+              onPress={enableNotifications}
+            >
+              <Text className="text-center text-sm font-semibold text-bg">Включить</Text>
+            </AnimatedPressable>
+            <AnimatedPressable
+              className="flex-1 rounded-xl border border-border bg-surface px-4 py-3.5"
+              onPress={testNotification}
+            >
+              <Text className="text-center text-sm font-semibold text-ink">Тест</Text>
+            </AnimatedPressable>
+          </View>
         </FadeInView>
 
         <FadeInView index={2}>
@@ -326,6 +378,32 @@ export default function SettingsScreen() {
         </FadeInView>
 
         <FadeInView index={3}>
+          <SectionHeader title="Валюты" />
+          <View className="overflow-hidden rounded-2xl border border-border bg-surface">
+            <SettingsRow
+              label="1 EUR"
+              value={`= ${rates.EUR.toFixed(2)} CZK`}
+              right={<Text className="text-base text-subtle">›</Text>}
+              onPress={() => editRate("EUR")}
+            />
+            <Divider />
+            <SettingsRow
+              label="1 USD"
+              value={`= ${rates.USD.toFixed(2)} CZK`}
+              right={<Text className="text-base text-subtle">›</Text>}
+              onPress={() => editRate("USD")}
+            />
+            <Divider />
+            <SettingsRow
+              label="Обновить курсы"
+              sublabel={lastUpdated ? `Обновлено: ${new Date(lastUpdated).toLocaleDateString("ru-RU")}` : "Данные не загружались"}
+              right={<Text className={`text-base ${isFetchingRates ? "text-muted" : "text-subtle"}`}>↻</Text>}
+              onPress={isFetchingRates ? undefined : () => { refreshRates().catch(() => undefined); }}
+            />
+          </View>
+        </FadeInView>
+
+        <FadeInView index={4}>
           <SectionHeader title="Данные" />
           <View className="overflow-hidden rounded-2xl border border-border bg-surface">
             <SettingsRow
@@ -346,6 +424,19 @@ export default function SettingsScreen() {
                 exportCsv().catch(() => undefined);
               }}
             />
+            {!isOfflineMode ? (
+              <>
+                <Divider />
+                <SettingsRow
+                  label="Отправить на email"
+                  sublabel={email ?? undefined}
+                  right={<Text className="text-base text-subtle">✉</Text>}
+                  onPress={() => {
+                    exportByEmail().catch(() => undefined);
+                  }}
+                />
+              </>
+            ) : null}
             <Divider />
             <SettingsRow
               label="Удалить все данные"

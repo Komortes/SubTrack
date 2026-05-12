@@ -17,7 +17,7 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-export function FadeInView({ children, className, index = 0, replayOnFocus = true, style }: Props) {
+export function FadeInView({ children, className, index = 0, replayOnFocus = false, style }: Props) {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(8);
   const delay = Math.min(index, 4) * 50;

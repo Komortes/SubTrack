@@ -1,15 +1,17 @@
 import { useEffect } from "react";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { Alert, ScrollView, Text, View, useColorScheme } from "react-native";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { FadeInView } from "@/components/FadeInView";
 import { ServiceIcon } from "@/components/ServiceIcon";
 import { categoryLabels } from "@/lib/catalog";
 import { formatDate, formatShortDate, toLocalDate, toLocalIsoDate } from "@/lib/dateFormat";
-import { shareSubscriptionCsv } from "@/lib/exportCsv";
 import { daysUntil, formatMoney, normalizeMonthlyAmount } from "@/lib/subscriptionMath";
+import { haptic } from "@/lib/haptics";
 import { useAuthStore } from "@/store/authStore";
+import { convertAmount, useCurrencyStore } from "@/store/currencyStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useSubscriptionStore } from "@/store/subscriptionStore";
 
@@ -28,6 +30,11 @@ export default function SubscriptionDetailsScreen() {
   const refreshSubscription = useSubscriptionStore((state) => state.refreshSubscription);
   const isOfflineMode = useAuthStore((state) => state.isOfflineMode);
   const dateFormat = useSettingsStore((state) => state.dateFormat);
+  const themeSetting = useSettingsStore((state) => state.theme);
+  const systemScheme = useColorScheme();
+  const isDark = themeSetting === "dark" ? true : themeSetting === "light" ? false : systemScheme !== "light";
+  const headerBg = isDark ? "#0a0a0a" : "#fafafa";
+  const headerTint = isDark ? "#fafafa" : "#0a0a0a";
 
   useEffect(() => {
     if (id && !isOfflineMode) {
@@ -43,6 +50,9 @@ export default function SubscriptionDetailsScreen() {
     );
   }
 
+  const primaryCurrency = useSettingsStore((state) => state.primaryCurrency);
+  const rates = useCurrencyStore((state) => state.rates);
+
   const currentSubscription = subscription;
   const periodDays =
     currentSubscription.billingPeriod === "weekly" ? 7
@@ -54,6 +64,8 @@ export default function SubscriptionDetailsScreen() {
   const progress = Math.max(0, Math.min(1, 1 - daysLeft / periodDays));
   const previousDateStr = subtractDays(currentSubscription.renewalDate, periodDays);
   const monthlyAmount = normalizeMonthlyAmount(currentSubscription);
+  const monthlyInPrimary = convertAmount(monthlyAmount, currentSubscription.currency, primaryCurrency, rates);
+  const showConverted = currentSubscription.currency !== primaryCurrency;
   const subscriptionId = currentSubscription.id;
   const subscriptionName = currentSubscription.name;
   const renewalBadge =
@@ -68,6 +80,7 @@ export default function SubscriptionDetailsScreen() {
         text: "Удалить",
         style: "destructive",
         onPress: () => {
+          haptic.warning();
           deleteSubscription(subscriptionId);
           router.back();
         }
@@ -76,22 +89,12 @@ export default function SubscriptionDetailsScreen() {
   }
 
   function confirmMarkPaid() {
-    Alert.alert("Отметить оплату?", `Следующая дата списания для ${subscriptionName} будет перенесена.`, [
-      { text: "Отмена", style: "cancel" },
-      { text: "Отметить", onPress: () => markPaid(subscriptionId).catch(() => undefined) }
-    ]);
+    haptic.success();
+    markPaid(subscriptionId).catch(() => undefined);
   }
 
   function toggleActive() {
     updateSubscription(subscriptionId, { isActive: !currentSubscription.isActive }).catch(() => undefined);
-  }
-
-  async function exportSubscription() {
-    try {
-      await shareSubscriptionCsv(currentSubscription);
-    } catch {
-      Alert.alert("Не удалось экспортировать", "Попробуй ещё раз позже.");
-    }
   }
 
   return (
@@ -99,34 +102,53 @@ export default function SubscriptionDetailsScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: "SubTrack",
-          headerStyle: { backgroundColor: "#0a0a0a" },
-          headerTintColor: "#fafafa"
+          title: currentSubscription.name,
+          headerStyle: { backgroundColor: headerBg },
+          headerTintColor: headerTint,
+          headerTitleStyle: { color: headerTint, fontWeight: "600" },
+          headerLeft: () => (
+            <AnimatedPressable
+              onPress={() => router.back()}
+              hapticFeedback={false}
+              scaleTarget={0.88}
+              style={{ marginLeft: -4, padding: 8 }}
+            >
+              <Feather name="chevron-left" size={28} color={headerTint} />
+            </AnimatedPressable>
+          )
         }}
       />
       <ScrollView className="flex-1 bg-bg" contentContainerClassName="pb-10">
 
-        {/* Hero — icon + name + category + price */}
-        <FadeInView className="items-center px-5 pb-6 pt-8">
-          <ServiceIcon name={subscription.name} iconSlug={subscription.iconSlug} color={subscription.color} size={80} />
-          <Text className="mt-5 text-2xl font-bold tracking-tight text-ink">{subscription.name}</Text>
-          <View className="mt-2 flex-row items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1">
-            <Text className="text-xs font-semibold uppercase tracking-widest text-muted">
-              {categoryLabels[subscription.category] ?? subscription.category}
-            </Text>
-          </View>
-          {!subscription.isActive ? (
-            <View className="mt-2 rounded-full border border-danger/30 bg-danger/10 px-3 py-1">
-              <Text className="text-xs font-semibold uppercase tracking-widest text-danger">Приостановлена</Text>
+        {/* Hero — icon + name + category + price with gradient tint */}
+        <View>
+          <LinearGradient
+            colors={[`${subscription.color}30`, `${subscription.color}08`, "transparent"]}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+          <FadeInView className="items-center px-5 pb-6 pt-8">
+            <ServiceIcon name={subscription.name} iconSlug={subscription.iconSlug} color={subscription.color} size={80} />
+            <Text className="mt-5 text-2xl font-bold tracking-tight text-ink">{subscription.name}</Text>
+            <View className="mt-2 flex-row items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1">
+              <Text className="text-xs font-semibold uppercase tracking-widest text-muted">
+                {categoryLabels[subscription.category] ?? subscription.category}
+              </Text>
             </View>
-          ) : null}
-          <Text className="mt-5 text-5xl font-bold tracking-tighter text-ink">
-            {formatMoney(subscription.amount, subscription.currency)}
-          </Text>
-          <Text className="mt-1.5 text-sm text-subtle">
-            Эквивалент {formatMoney(monthlyAmount, subscription.currency)}/мес
-          </Text>
-        </FadeInView>
+            {!subscription.isActive ? (
+              <View className="mt-2 rounded-full border border-danger/30 bg-danger/10 px-3 py-1">
+                <Text className="text-xs font-semibold uppercase tracking-widest text-danger">Приостановлена</Text>
+              </View>
+            ) : null}
+            <Text className="mt-5 text-5xl font-bold tracking-tighter text-ink">
+              {formatMoney(subscription.amount, subscription.currency)}
+            </Text>
+            <Text className="mt-1.5 text-sm text-subtle">
+              {showConverted
+                ? `≈ ${formatMoney(monthlyInPrimary, primaryCurrency)}/мес`
+                : `${formatMoney(monthlyAmount, subscription.currency)}/мес`}
+            </Text>
+          </FadeInView>
+        </View>
 
         <View className="gap-3 px-5">
 
@@ -206,20 +228,12 @@ export default function SubscriptionDetailsScreen() {
               </Text>
             </AnimatedPressable>
 
-            <View className="flex-row gap-3">
-              <AnimatedPressable
-                className="flex-1 rounded-2xl border border-border bg-surface px-4 py-4"
-                onPress={() => router.push(`/(app)/(tabs)/subscriptions/${subscription.id}/edit`)}
-              >
-                <Text className="text-center font-semibold text-ink">Редактировать</Text>
-              </AnimatedPressable>
-              <AnimatedPressable
-                className="flex-1 rounded-2xl border border-border bg-surface px-4 py-4"
-                onPress={exportSubscription}
-              >
-                <Text className="text-center font-semibold text-ink">Экспорт</Text>
-              </AnimatedPressable>
-            </View>
+            <AnimatedPressable
+              className="rounded-2xl border border-border bg-surface px-4 py-4"
+              onPress={() => router.push(`/(app)/(tabs)/subscriptions/${subscription.id}/edit`)}
+            >
+              <Text className="text-center font-semibold text-ink">Редактировать</Text>
+            </AnimatedPressable>
 
             <AnimatedPressable
               className="rounded-2xl border border-danger/20 bg-surface px-5 py-4"

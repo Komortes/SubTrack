@@ -1,21 +1,38 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import * as api from "@/lib/api";
 import { normalizeMonthlyAmount } from "@/lib/subscriptionMath";
 import { useAuthStore } from "@/store/authStore";
+import { convertAmount, useCurrencyStore } from "@/store/currencyStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { useSubscriptionStore } from "@/store/subscriptionStore";
+import { useState } from "react";
 
 export function useAnalytics() {
   const subscriptions = useSubscriptionStore((state) => state.subscriptions);
   const isOfflineMode = useAuthStore((state) => state.isOfflineMode);
+  const primaryCurrency = useSettingsStore((state) => state.primaryCurrency);
+  const rates = useCurrencyStore((state) => state.rates);
+  const fetchRates = useCurrencyStore((state) => state.fetchRates);
   const [remoteSummary, setRemoteSummary] = useState<api.AnalyticsSummary | null>(null);
   const [monthlyHistory, setMonthlyHistory] = useState<api.MonthlyAnalyticsPoint[]>([]);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
 
+  // Fetch exchange rates on mount (respects 24h TTL internally)
+  useEffect(() => {
+    fetchRates().catch(() => undefined);
+  }, [fetchRates]);
+
   const localAnalytics = useMemo(() => {
     const active = subscriptions.filter((item) => item.isActive);
-    const monthlyTotal = active.reduce((sum, item) => sum + normalizeMonthlyAmount(item), 0);
+
+    function toMonthlyPrimary(subscription: typeof active[number]): number {
+      const monthly = normalizeMonthlyAmount(subscription);
+      return convertAmount(monthly, subscription.currency, primaryCurrency, rates);
+    }
+
+    const monthlyTotal = active.reduce((sum, item) => sum + toMonthlyPrimary(item), 0);
     const byCategory = active.reduce<Record<string, number>>((result, item) => {
-      result[item.category] = (result[item.category] ?? 0) + normalizeMonthlyAmount(item);
+      result[item.category] = (result[item.category] ?? 0) + toMonthlyPrimary(item);
       return result;
     }, {});
 
@@ -25,10 +42,10 @@ export function useAnalytics() {
       activeCount: active.length,
       byCategory,
       topSubscriptions: [...active].sort(
-        (a, b) => normalizeMonthlyAmount(b) - normalizeMonthlyAmount(a)
+        (a, b) => toMonthlyPrimary(b) - toMonthlyPrimary(a)
       )
     };
-  }, [subscriptions]);
+  }, [subscriptions, primaryCurrency, rates]);
 
   useEffect(() => {
     if (isOfflineMode) {
@@ -59,9 +76,10 @@ export function useAnalytics() {
     };
   }, [isOfflineMode, subscriptions.length]);
 
+  // Remote summary from server is always in the server's base currency — use local analytics instead
+  // since only local analytics can do per-subscription currency conversion properly
   return {
     ...localAnalytics,
-    ...(remoteSummary ?? {}),
     monthlyHistory,
     analyticsError
   };

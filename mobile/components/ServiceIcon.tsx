@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
 
 const BRAND_COLORS: Record<string, string> = {
@@ -23,21 +24,27 @@ const BRAND_COLORS: Record<string, string> = {
   cloudflare: "#f97316"
 };
 
+// Only icons confirmed present in MaterialCommunityIcons glyph map
+const MCI_ICONS: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  spotify: "spotify",
+  netflix: "netflix",
+  youtube: "youtube",
+  github: "github",
+  dropbox: "dropbox",
+  icloud: "apple-icloud",
+  slack: "slack",
+  microsoft: "microsoft",
+  google: "google"
+};
+
 const SERVICE_LABELS: Record<string, string> = {
-  spotify: "S",
-  netflix: "N",
-  apple: "A",
-  google: "G",
-  youtube: "Y",
-  discord: "D",
-  github: "GH",
+  chatgpt: "AI",
+  openai: "AI",
+  claude: "Cl",
   notion: "N",
   figma: "F",
-  adobe: "A",
-  chatgpt: "AI",
-  claude: "C",
-  dropbox: "D",
-  icloud: "iC"
+  vercel: "▲",
+  cloudflare: "CF"
 };
 
 type Props = {
@@ -49,9 +56,10 @@ type Props = {
 
 export function ServiceIcon({ name, iconSlug, color, size = 44 }: Props) {
   const key = (iconSlug ?? name).toLowerCase().replace(/\s+/g, "");
-  const label = iconSlug ? SERVICE_LABELS[iconSlug] : name.slice(0, 1).toUpperCase();
   const backgroundColor = BRAND_COLORS[key] ?? color ?? "#262626";
   const needsBorder = ["github", "notion", "vercel"].includes(key);
+  const mciIcon = iconSlug ? MCI_ICONS[iconSlug] : undefined;
+  const iconSize = Math.round(size * 0.52);
 
   return (
     <View
@@ -64,7 +72,17 @@ export function ServiceIcon({ name, iconSlug, color, size = 44 }: Props) {
         borderColor: "#333333"
       }}
     >
-      <Text className="text-sm font-bold text-white">{label}</Text>
+      {mciIcon ? (
+        <MaterialCommunityIcons name={mciIcon} size={iconSize} color="#ffffff" />
+      ) : (
+        <Text
+          style={{ fontSize: Math.max(10, Math.round(size * 0.3)), fontWeight: "700", color: "#ffffff" }}
+        >
+          {iconSlug
+            ? (SERVICE_LABELS[iconSlug] ?? iconSlug.slice(0, 2).toUpperCase())
+            : name.slice(0, 1).toUpperCase()}
+        </Text>
+      )}
     </View>
   );
 }

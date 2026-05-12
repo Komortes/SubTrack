@@ -3,7 +3,7 @@ import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Tabs } from "expo-router";
 import { useEffect } from "react";
-import { Pressable, useWindowDimensions, View, Text } from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -17,11 +17,11 @@ import { useSubscriptionStore } from "@/store/subscriptionStore";
 
 type FeatherIcon = keyof typeof Feather.glyphMap;
 
-const tabConfig: Record<string, { icon: FeatherIcon; label: string }> = {
-  index:         { icon: "home",      label: "HOME" },
-  subscriptions: { icon: "list",      label: "SUBS" },
-  stats:         { icon: "activity",  label: "STATS" },
-  settings:      { icon: "settings",  label: "SET" }
+const tabConfig: Record<string, { icon: FeatherIcon }> = {
+  index:         { icon: "home" },
+  subscriptions: { icon: "list" },
+  stats:         { icon: "activity" },
+  settings:      { icon: "settings" }
 };
 
 const SPRING = { damping: 24, stiffness: 260, mass: 0.65 };
@@ -30,12 +30,10 @@ const DOT_SIZE = 5;
 
 function TabItem({
   icon,
-  label,
   focused,
   onPress
 }: {
   icon: FeatherIcon;
-  label: string;
   focused: boolean;
   onPress: () => void;
 }) {
@@ -50,22 +48,10 @@ function TabItem({
   return (
     <Pressable
       onPress={onPress}
-      style={{ flex: 1, alignItems: "center", paddingVertical: 10 }}
+      style={{ flex: 1, alignItems: "center", paddingVertical: 14 }}
     >
       <Animated.View style={iconStyle}>
-        <Feather name={icon} size={20} color="#fafafa" />
-        <Text
-          style={{
-            color: "#fafafa",
-            fontSize: 10,
-            fontWeight: "600",
-            marginTop: 4,
-            letterSpacing: 0.4,
-            textAlign: "center"
-          }}
-        >
-          {label}
-        </Text>
+        <Feather name={icon} size={22} color="#fafafa" />
       </Animated.View>
     </Pressable>
   );
@@ -111,17 +97,17 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
           borderRadius: 32,
           flexDirection: "row",
           paddingHorizontal: H_PAD,
+          paddingBottom: 12,
           position: "relative"
         }}
       >
         {state.routes.map((route, index) => {
           const focused = state.index === index;
-          const config = tabConfig[route.name] ?? { icon: "circle" as FeatherIcon, label: route.name };
+          const config = tabConfig[route.name] ?? { icon: "circle" as FeatherIcon };
           return (
             <TabItem
               key={route.key}
               icon={config.icon}
-              label={config.label}
               focused={focused}
               onPress={() => {
                 const event = navigation.emit({
@@ -143,7 +129,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
             dotStyle,
             {
               position: "absolute",
-              bottom: 6,
+              bottom: 4,
               width: DOT_SIZE,
               height: DOT_SIZE,
               borderRadius: DOT_SIZE / 2,
@@ -188,7 +174,8 @@ export default function TabsLayout() {
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        lazy: false
+        lazy: false,
+        sceneStyle: { backgroundColor: "#0a0a0a" }
       }}
     >
       <Tabs.Screen name="index" />

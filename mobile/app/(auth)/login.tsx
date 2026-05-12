@@ -1,6 +1,6 @@
 import { Link, router } from "expo-router";
-import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { useRef, useState } from "react";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { useAuthStore } from "@/store/authStore";
 
@@ -14,6 +14,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   async function submit() {
     const normalizedEmail = email.trim().toLowerCase();
@@ -49,51 +50,76 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 justify-center bg-bg px-6"
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      className="flex-1 bg-bg"
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={0}
     >
-      <Text className="text-3xl font-bold tracking-tight text-ink">Вход</Text>
-      <Text className="mt-2 text-base text-subtle">Синхронизируй подписки между устройствами.</Text>
-      <Text className="mt-8 mb-2 text-xs font-semibold uppercase tracking-widest text-muted">Email</Text>
-      <TextInput
-        className="rounded-2xl border border-border bg-surface px-4 py-4 text-ink"
-        placeholder="name@example.com"
-        placeholderTextColor="#525252"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        textContentType="emailAddress"
-        value={email}
-        onChangeText={updateEmail}
-      />
-      <Text className="mt-4 mb-2 text-xs font-semibold uppercase tracking-widest text-muted">Пароль</Text>
-      <View className="flex-row items-center rounded-2xl border border-border bg-surface pr-4">
-        <TextInput
-          className="flex-1 px-4 py-4 text-ink"
-          placeholder="••••••••"
-          placeholderTextColor="#525252"
-          secureTextEntry={!showPassword}
-          textContentType="password"
-          value={password}
-          onChangeText={updatePassword}
-        />
-        <Pressable hitSlop={8} onPress={() => setShowPassword((value) => !value)}>
-          <Text className="text-sm font-semibold text-muted">{showPassword ? "Скрыть" : "Показать"}</Text>
-        </Pressable>
-      </View>
-      {localError || error ? <Text className="mt-3 text-sm font-medium text-danger">{localError ?? error}</Text> : null}
-      <AnimatedPressable className="mt-6 rounded-2xl bg-accent px-5 py-4" disabled={isLoading} onPress={submit}>
-        <Text className="text-center font-semibold text-bg">{isLoading ? "Входим..." : "Войти"}</Text>
-      </AnimatedPressable>
-      <AnimatedPressable
-        className="mt-3 rounded-2xl border border-border bg-surface px-5 py-4"
-        disabled={isLoading}
-        onPress={continueOffline}
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingHorizontal: 24, paddingVertical: 48 }}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+        showsVerticalScrollIndicator={false}
       >
-        <Text className="text-center font-semibold text-subtle">Продолжить офлайн</Text>
-      </AnimatedPressable>
-      <Link href="/(auth)/register" className="mt-6 text-center text-muted">
-        Нет аккаунта? Зарегистрироваться
-      </Link>
+        <Text className="text-3xl font-bold tracking-tight text-ink">Вход</Text>
+        <Text className="mt-2 text-base text-subtle">Синхронизируй подписки между устройствами.</Text>
+
+        <Text className="mt-8 mb-2 text-xs font-semibold uppercase tracking-widest text-muted">Email</Text>
+        <TextInput
+          className="rounded-2xl border border-border bg-surface px-4 py-4 text-base text-ink"
+          placeholder="name@example.com"
+          placeholderTextColor="#525252"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          returnKeyType="next"
+          value={email}
+          onChangeText={updateEmail}
+          onSubmitEditing={() => passwordRef.current?.focus()}
+        />
+
+        <Text className="mt-5 mb-2 text-xs font-semibold uppercase tracking-widest text-muted">Пароль</Text>
+        <View className="flex-row items-center rounded-2xl border border-border bg-surface pr-4">
+          <TextInput
+            ref={passwordRef}
+            className="flex-1 px-4 py-4 text-base text-ink"
+            placeholder="••••••••"
+            placeholderTextColor="#525252"
+            secureTextEntry={!showPassword}
+            textContentType="password"
+            returnKeyType="done"
+            value={password}
+            onChangeText={updatePassword}
+            onSubmitEditing={submit}
+          />
+          <Pressable hitSlop={12} onPress={() => setShowPassword((v) => !v)}>
+            <Text className="text-sm font-semibold text-muted">{showPassword ? "Скрыть" : "Показать"}</Text>
+          </Pressable>
+        </View>
+
+        {localError || error ? (
+          <Text className="mt-3 text-sm font-medium text-danger">{localError ?? error}</Text>
+        ) : null}
+
+        <AnimatedPressable
+          className="mt-7 rounded-2xl bg-accent px-5 py-4"
+          disabled={isLoading}
+          onPress={submit}
+        >
+          <Text className="text-center font-semibold text-bg">{isLoading ? "Входим..." : "Войти"}</Text>
+        </AnimatedPressable>
+
+        <AnimatedPressable
+          className="mt-3 rounded-2xl border border-border bg-surface px-5 py-4"
+          disabled={isLoading}
+          onPress={continueOffline}
+        >
+          <Text className="text-center font-semibold text-subtle">Продолжить офлайн</Text>
+        </AnimatedPressable>
+
+        <Link href="/(auth)/register" className="mt-6 text-center text-muted">
+          Нет аккаунта? Зарегистрироваться
+        </Link>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

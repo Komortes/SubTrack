@@ -1,20 +1,24 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "expo-router";
-import { ScrollView, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { FadeInView } from "@/components/FadeInView";
+import { InsightCard } from "@/components/InsightCard";
+import { PaymentCalendar } from "@/components/PaymentCalendar";
 import { ScreenTransition } from "@/components/ScreenTransition";
 import { SubscriptionCard } from "@/components/SubscriptionCard";
 import { SummaryCard } from "@/components/SummaryCard";
+import { RefreshIndicator } from "@/components/RefreshIndicator";
 import { UpcomingList } from "@/components/UpcomingList";
 import { daysUntil } from "@/lib/subscriptionMath";
+import { haptic } from "@/lib/haptics";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
 import { useAuthStore } from "@/store/authStore";
 import { useSubscriptionStore } from "@/store/subscriptionStore";
 
 export default function HomeScreen() {
-  const { monthlyTotal, yearlyTotal } = useAnalytics();
+  const { monthlyTotal, yearlyTotal, monthlyHistory } = useAnalytics();
   const { activeSubscriptions, recentlyAdded } = useSubscriptions();
   const isOfflineMode = useAuthStore((state) => state.isOfflineMode);
   const markPaid = useSubscriptionStore((state) => state.markPaid);
@@ -24,6 +28,25 @@ export default function HomeScreen() {
   const pendingSyncCount = useSubscriptionStore((state) => state.pendingSyncCount);
   const refreshPendingSyncCount = useSubscriptionStore((state) => state.refreshPendingSyncCount);
   const today = activeSubscriptions.filter((item) => daysUntil(item.renewalDate) === 0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Compute trend vs previous month from history (null when no data)
+  const trend: number | null = (() => {
+    if (monthlyHistory.length < 2) return null;
+    const prev = monthlyHistory[monthlyHistory.length - 2]?.total;
+    if (!prev || prev === 0) return null;
+    return ((monthlyTotal - prev) / prev) * 100;
+  })();
+
+  const refresh = useCallback(async () => {
+    if (isOfflineMode) return;
+    setIsRefreshing(true);
+    try {
+      await syncFromServer();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isOfflineMode, syncFromServer]);
 
   useEffect(() => {
     if (!isOfflineMode) {
@@ -36,8 +59,19 @@ export default function HomeScreen() {
 
   return (
     <ScreenTransition className="flex-1 bg-bg">
-      <ScrollView contentContainerClassName="gap-6 px-5 pb-40 pt-16">
+      <ScrollView
+        contentContainerClassName="gap-6 px-5 pb-40 pt-16"
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={refresh}
+            tintColor="#fafafa"
+            progressBackgroundColor="#141414"
+          />
+        }
+      >
         <View>
+          <RefreshIndicator visible={isRefreshing} />
           <Text className="text-3xl font-bold tracking-tight text-ink">SubTrack</Text>
           <Text className="mt-1 text-subtle">Обзор подписок и списаний</Text>
           {pendingSyncCount > 0 ? (
@@ -63,7 +97,9 @@ export default function HomeScreen() {
           ) : null}
           {syncError ? <Text className="mt-2 text-sm font-medium text-danger">{syncError}</Text> : null}
         </View>
-        <SummaryCard monthlyTotal={monthlyTotal} yearlyTotal={yearlyTotal} />
+        <SummaryCard monthlyTotal={monthlyTotal} yearlyTotal={yearlyTotal} trend={trend} />
+        <InsightCard subscriptions={activeSubscriptions} />
+        <PaymentCalendar subscriptions={activeSubscriptions} />
         {today.length > 0 ? (
           <View className="rounded-2xl border border-danger/30 bg-danger/10 p-4">
             {today.map((item) => (
@@ -73,7 +109,7 @@ export default function HomeScreen() {
                   <Text className="text-xs font-semibold uppercase tracking-widest text-danger">Списание сегодня</Text>
                   <Text className="mt-0.5 text-sm text-subtle">{item.name} · {item.amount} {item.currency}</Text>
                 </View>
-                <AnimatedPressable className="rounded-xl border border-border bg-surface px-3 py-2" onPress={() => markPaid(item.id)}>
+                <AnimatedPressable className="rounded-xl border border-border bg-surface px-3 py-2" onPress={() => { haptic.success(); markPaid(item.id); }}>
                   <Text className="text-xs font-semibold uppercase tracking-widest text-ink">Оплачено</Text>
                 </AnimatedPressable>
               </View>

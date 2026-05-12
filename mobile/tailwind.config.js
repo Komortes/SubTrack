@@ -5,15 +5,15 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        bg: "#0a0a0a",
-        ink: "#fafafa",
-        muted: "#525252",
-        subtle: "#a3a3a3",
-        line: "#141414",
-        surface: "#141414",
-        border: "#1f1f1f",
-        accent: "#fafafa",
-        danger: "#ef4444"
+        bg: "rgb(var(--bg) / <alpha-value>)",
+        ink: "rgb(var(--ink) / <alpha-value>)",
+        muted: "rgb(var(--muted) / <alpha-value>)",
+        subtle: "rgb(var(--subtle) / <alpha-value>)",
+        line: "rgb(var(--line) / <alpha-value>)",
+        surface: "rgb(var(--surface) / <alpha-value>)",
+        border: "rgb(var(--border) / <alpha-value>)",
+        accent: "rgb(var(--accent) / <alpha-value>)",
+        danger: "rgb(var(--danger) / <alpha-value>)"
       }
     }
   },
