@@ -1,0 +1,35 @@
+app = "subtrack-api"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  APP_ENV = "production"
+  APP_DEBUG = "false"
+  LOG_CHANNEL = "stderr"
+  DB_CONNECTION = "pgsql"
+  QUEUE_CONNECTION = "redis"
+  CACHE_STORE = "redis"
+  SESSION_DRIVER = "redis"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[processes]
+  app = "php-fpm"
+  worker = "php artisan queue:work redis --sleep=1 --tries=3 --timeout=90"
+  scheduler = "php artisan schedule:work"
+
+[deploy]
+  release_command = "php artisan migrate --force"

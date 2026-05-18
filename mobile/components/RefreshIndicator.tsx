@@ -29,7 +29,7 @@ export function RefreshIndicator({ visible }: Props) {
       cancelAnimation(rotation);
       rotation.value = 0;
     }
-  }, [visible]);
+  }, [rotation, visible]);
 
   const spin = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],

@@ -18,6 +18,7 @@ type AuthState = {
   restoreSession: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
+  socialLogin: (provider: "google", idToken: string, name?: string | null) => Promise<void>;
   setSession: (email: string, token: string) => Promise<void>;
   useOfflineMode: () => Promise<void>;
   logout: () => Promise<void>;
@@ -102,6 +103,24 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : "Не удалось зарегистрироваться", isLoading: false });
+      throw error;
+    }
+  },
+  socialLogin: async (provider, idToken, name) => {
+    set({ isLoading: true, error: null });
+    try {
+      const session = await api.socialLogin(provider, idToken, name);
+      await SecureStore.setItemAsync(TOKEN_KEY, session.token);
+      await SecureStore.deleteItemAsync(OFFLINE_MODE_KEY);
+      set({
+        email: session.user.email,
+        isOfflineMode: false,
+        isLoading: false,
+        hasCheckedSession: true,
+        hasCompletedOnboarding: true
+      });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Не удалось войти через провайдера", isLoading: false });
       throw error;
     }
   },

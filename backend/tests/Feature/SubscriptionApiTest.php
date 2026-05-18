@@ -8,6 +8,7 @@ use App\Jobs\CheckUpcomingRenewalsJob;
 use App\Jobs\SendPushNotificationJob;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -36,6 +37,35 @@ class SubscriptionApiTest extends TestCase
         $this->getJson('/api/auth/me')
             ->assertOk()
             ->assertJsonPath('email', 'profile@example.com');
+    }
+
+    public function test_user_can_login_with_google_identity_token(): void
+    {
+        config(['services.google.client_ids' => ['google-client-id']]);
+        Http::fake([
+            'oauth2.googleapis.com/tokeninfo*' => Http::response([
+                'sub' => 'google-user-123',
+                'aud' => 'google-client-id',
+                'email' => 'google@example.com',
+                'email_verified' => 'true',
+                'name' => 'Google User',
+                'picture' => 'https://example.com/avatar.png',
+            ]),
+        ]);
+
+        $this->postJson('/api/auth/social', [
+            'provider' => 'google',
+            'id_token' => 'google-id-token',
+        ])
+            ->assertCreated()
+            ->assertJsonStructure(['token', 'user' => ['id', 'email']])
+            ->assertJsonPath('user.email', 'google@example.com');
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'google@example.com',
+            'google_id' => 'google-user-123',
+            'name' => 'Google User',
+        ]);
     }
 
     public function test_authenticated_user_can_delete_account(): void

@@ -4,6 +4,7 @@ import { Share } from "react-native";
 import { Subscription } from "./types";
 
 const headers = [
+  "id",
   "name",
   "amount",
   "currency",
@@ -11,12 +12,16 @@ const headers = [
   "custom_period_days",
   "renewal_date",
   "category",
+  "icon_slug",
+  "color",
   "is_active",
-  "notes"
+  "notes",
+  "created_at"
 ];
 
 export function subscriptionsToCsv(subscriptions: Subscription[]): string {
   const rows = subscriptions.map((subscription) => [
+    subscription.id,
     subscription.name,
     subscription.amount,
     subscription.currency,
@@ -24,8 +29,11 @@ export function subscriptionsToCsv(subscriptions: Subscription[]): string {
     subscription.customPeriodDays ?? "",
     subscription.renewalDate,
     subscription.category,
+    subscription.iconSlug ?? "",
+    subscription.color,
     subscription.isActive ? "true" : "false",
-    subscription.notes ?? ""
+    subscription.notes ?? "",
+    subscription.createdAt
   ]);
 
   return [headers, ...rows].map((row) => row.map(escapeCsvValue).join(",")).join("\n");

@@ -6,6 +6,7 @@ import { FadeInView } from "@/components/FadeInView";
 import { ScreenTransition } from "@/components/ScreenTransition";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { shareSubscriptionsCsv } from "@/lib/exportCsv";
+import { pickSubscriptionsCsv } from "@/lib/importCsv";
 import { syncLocalRenewalNotifications } from "@/lib/notifications";
 import { useAuthStore } from "@/store/authStore";
 import { useCurrencyStore } from "@/store/currencyStore";
@@ -85,8 +86,10 @@ export default function SettingsScreen() {
   const email = useAuthStore((state) => state.email);
   const subscriptions = useSubscriptionStore((state) => state.subscriptions);
   const pendingSyncCount = useSubscriptionStore((state) => state.pendingSyncCount);
+  const lastSyncedAt = useSubscriptionStore((state) => state.lastSyncedAt);
   const refreshPendingSyncCount = useSubscriptionStore((state) => state.refreshPendingSyncCount);
   const syncSubscriptions = useSubscriptionStore((state) => state.syncFromServer);
+  const importSubscriptions = useSubscriptionStore((state) => state.importSubscriptions);
   const deleteAllSubscriptions = useSubscriptionStore((state) => state.deleteAllSubscriptions);
   const resetSubscriptions = useSubscriptionStore((state) => state.resetSubscriptions);
   const rates = useCurrencyStore((state) => state.rates);
@@ -162,6 +165,26 @@ export default function SettingsScreen() {
 
   async function exportCsv() {
     await shareSubscriptionsCsv(subscriptions);
+  }
+
+  async function importCsv() {
+    try {
+      const result = await pickSubscriptionsCsv();
+      if (!result) return;
+
+      if (result.subscriptions.length === 0) {
+        Alert.alert("CSV не импортирован", "В файле не найдено валидных подписок.");
+        return;
+      }
+
+      const summary = await importSubscriptions(result.subscriptions);
+      Alert.alert(
+        "CSV импортирован",
+        `Добавлено: ${summary.created}. Обновлено: ${summary.updated}. Пропущено строк: ${result.skipped}.`
+      );
+    } catch {
+      Alert.alert("Не удалось импортировать CSV", "Проверь формат файла и попробуй ещё раз.");
+    }
   }
 
   async function exportByEmail() {
@@ -411,17 +434,35 @@ export default function SettingsScreen() {
               sublabel={
                 pendingSyncCount > 0
                   ? `В очереди изменений: ${pendingSyncCount}`
-                  : "Обновить данные и настройки"
+                  : lastSyncedAt
+                    ? `Последняя синхронизация: ${new Date(lastSyncedAt).toLocaleString("ru-RU")}`
+                    : "Обновить данные и настройки"
               }
               right={<Text className="text-base text-subtle">↻</Text>}
               onPress={syncNow}
             />
             <Divider />
             <SettingsRow
+              label="Разрешение конфликтов"
+              sublabel="При одновременных правках применяется последняя отправленная версия"
+              value="Last write wins"
+            />
+            <Divider />
+            <SettingsRow
               label="Экспорт CSV"
+              sublabel="Все поля подписок, включая id для повторного импорта"
               right={<Text className="text-base text-subtle">↓</Text>}
               onPress={() => {
                 exportCsv().catch(() => undefined);
+              }}
+            />
+            <Divider />
+            <SettingsRow
+              label="Импорт CSV"
+              sublabel="Добавляет новые подписки и обновляет строки с тем же id"
+              right={<Text className="text-base text-subtle">↑</Text>}
+              onPress={() => {
+                importCsv().catch(() => undefined);
               }}
             />
             {!isOfflineMode ? (

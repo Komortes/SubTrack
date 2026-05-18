@@ -31,6 +31,8 @@ export default function SubscriptionDetailsScreen() {
   const isOfflineMode = useAuthStore((state) => state.isOfflineMode);
   const dateFormat = useSettingsStore((state) => state.dateFormat);
   const themeSetting = useSettingsStore((state) => state.theme);
+  const primaryCurrency = useSettingsStore((state) => state.primaryCurrency);
+  const rates = useCurrencyStore((state) => state.rates);
   const systemScheme = useColorScheme();
   const isDark = themeSetting === "dark" ? true : themeSetting === "light" ? false : systemScheme !== "light";
   const headerBg = isDark ? "#0a0a0a" : "#fafafa";
@@ -49,9 +51,6 @@ export default function SubscriptionDetailsScreen() {
       </View>
     );
   }
-
-  const primaryCurrency = useSettingsStore((state) => state.primaryCurrency);
-  const rates = useCurrencyStore((state) => state.rates);
 
   const currentSubscription = subscription;
   const periodDays =

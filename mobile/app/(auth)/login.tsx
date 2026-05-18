@@ -2,6 +2,7 @@ import { Link, router } from "expo-router";
 import { useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
+import { SocialAuthButtons } from "@/components/SocialAuthButtons";
 import { useAuthStore } from "@/store/authStore";
 
 export default function LoginScreen() {
@@ -115,6 +116,8 @@ export default function LoginScreen() {
         >
           <Text className="text-center font-semibold text-subtle">Продолжить офлайн</Text>
         </AnimatedPressable>
+
+        <SocialAuthButtons onDone={() => router.replace("/(app)/(tabs)")} />
 
         <Link href="/(auth)/register" className="mt-6 text-center text-muted">
           Нет аккаунта? Зарегистрироваться

@@ -7,6 +7,9 @@ const TOKEN_KEY = "subtrack_token";
 type ApiUser = {
   id: number;
   email: string;
+  name?: string | null;
+  avatar_url?: string | null;
+  last_synced_at?: string | null;
 };
 
 type AuthResponse = {
@@ -133,6 +136,17 @@ export async function register(email: string, password: string): Promise<AuthRes
   return apiRequest<AuthResponse>("/auth/register", {
     method: "POST",
     body: JSON.stringify({ email, password })
+  });
+}
+
+export async function socialLogin(provider: "google", idToken: string, name?: string | null): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>("/auth/social", {
+    method: "POST",
+    body: JSON.stringify({
+      provider,
+      id_token: idToken,
+      name
+    })
   });
 }
 
