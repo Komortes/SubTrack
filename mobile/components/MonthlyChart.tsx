@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { formatMoney } from "@/lib/subscriptionMath";
 
@@ -13,18 +14,25 @@ type Props = {
   }[];
 };
 
-const labels = ["Дек", "Янв", "Фев", "Мар", "Апр", "Май"];
-
 export function MonthlyChart({ monthlyTotal, primaryCurrency = "CZK", data }: Props) {
+  const { t } = useTranslation();
+
+  // Use locale-aware short month labels for placeholder data
+  const placeholderLabels = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+      return {
+        key: d.toISOString().slice(0, 7),
+        label: d.toLocaleDateString(undefined, { month: "short" }),
+        total: monthlyTotal * (0.75 + i * 0.05)
+      };
+    });
+  }, [monthlyTotal]);
+
   const points = useMemo(
-    () => data?.length
-      ? data.slice(-6)
-      : labels.map((label, index) => ({
-        key: label,
-        label,
-        total: monthlyTotal * (0.75 + index * 0.05)
-      })),
-    [data, monthlyTotal]
+    () => data?.length ? data.slice(-6) : placeholderLabels,
+    [data, placeholderLabels]
   );
   const [selectedKey, setSelectedKey] = useState(points.at(-1)?.key ?? "");
   const values = points.map((point) => point.total);
@@ -34,7 +42,7 @@ export function MonthlyChart({ monthlyTotal, primaryCurrency = "CZK", data }: Pr
   return (
     <View>
       <View className="flex-row items-start justify-between gap-3">
-        <Text className="text-xs font-semibold uppercase tracking-widest text-muted">Расходы по месяцам</Text>
+        <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("stats.monthlyChart")}</Text>
         {selectedPoint ? (
           <Text className="text-right text-xs font-semibold text-subtle">
             {selectedPoint.label}: {formatMoney(selectedPoint.total, primaryCurrency)}
@@ -62,7 +70,7 @@ export function MonthlyChart({ monthlyTotal, primaryCurrency = "CZK", data }: Pr
         );
         })}
       </View>
-      <Text className="mt-3 text-sm text-subtle">Текущий темп: {formatMoney(monthlyTotal, primaryCurrency)}/мес</Text>
+      <Text className="mt-3 text-sm text-subtle">{formatMoney(monthlyTotal, primaryCurrency)}{t("common.perMonth")}</Text>
     </View>
   );
 }

@@ -1,6 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import * as api from "@/lib/api";
+import i18next from "@/lib/i18n";
 import { clearStoredPushToken, getStoredPushToken } from "@/lib/notifications";
 import { clearOfflineQueue } from "@/lib/sync";
 
@@ -84,7 +85,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         hasCompletedOnboarding: true
       });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Не удалось войти", isLoading: false });
+      set({ error: error instanceof Error ? error.message : i18next.t("common.error"), isLoading: false });
       throw error;
     }
   },
@@ -102,7 +103,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         hasCompletedOnboarding: true
       });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Не удалось зарегистрироваться", isLoading: false });
+      set({ error: error instanceof Error ? error.message : i18next.t("common.error"), isLoading: false });
       throw error;
     }
   },
@@ -120,7 +121,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         hasCompletedOnboarding: true
       });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Не удалось войти через провайдера", isLoading: false });
+      set({ error: error instanceof Error ? error.message : i18next.t("common.error"), isLoading: false });
       throw error;
     }
   },

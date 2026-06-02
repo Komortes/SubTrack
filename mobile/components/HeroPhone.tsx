@@ -25,16 +25,16 @@ const INSET = 7;
 const CARDS_TOP = 46;
 
 const SERVICES = [
-  { letter: "N", name: "Netflix",  color: "#E50914", amount: "249 CZK", days: "через 3 дн."  },
-  { letter: "S", name: "Spotify",  color: "#1DB954", amount: "159 CZK", days: "через 12 дн." },
-  { letter: "i", name: "iCloud",   color: "#0071E3", amount: "49 CZK",  days: "через 5 дн."  },
-  { letter: "G", name: "ChatGPT",  color: "#10A37F", amount: "590 CZK", days: "через 18 дн." },
-  { letter: "Y", name: "YouTube",  color: "#FF4444", amount: "189 CZK", days: "через 7 дн."  },
-  { letter: "F", name: "Figma",    color: "#F24E1E", amount: "890 CZK", days: "через 14 дн." },
-  { letter: "D", name: "Discord",  color: "#5865F2", amount: "99 CZK",  days: "через 21 дн." },
-  { letter: "N", name: "Notion",   color: "#6366F1", amount: "349 CZK", days: "через 9 дн."  },
-  { letter: "S", name: "Slack",    color: "#E01E5A", amount: "420 CZK", days: "через 2 дн."  },
-  { letter: "G", name: "GitHub",   color: "#7C3AED", amount: "250 CZK", days: "через 16 дн." },
+  { letter: "N", name: "Netflix",  color: "#E50914", amount: "249 CZK", days: "in 3 days"   },
+  { letter: "S", name: "Spotify",  color: "#1DB954", amount: "159 CZK", days: "in 12 days"  },
+  { letter: "i", name: "iCloud",   color: "#0071E3", amount: "49 CZK",  days: "in 5 days"   },
+  { letter: "G", name: "ChatGPT",  color: "#10A37F", amount: "590 CZK", days: "in 18 days"  },
+  { letter: "Y", name: "YouTube",  color: "#FF4444", amount: "189 CZK", days: "in 7 days"   },
+  { letter: "F", name: "Figma",    color: "#F24E1E", amount: "890 CZK", days: "in 14 days"  },
+  { letter: "D", name: "Discord",  color: "#5865F2", amount: "99 CZK",  days: "in 21 days"  },
+  { letter: "N", name: "Notion",   color: "#6366F1", amount: "349 CZK", days: "in 9 days"   },
+  { letter: "S", name: "Slack",    color: "#E01E5A", amount: "420 CZK", days: "in 2 days"   },
+  { letter: "G", name: "GitHub",   color: "#7C3AED", amount: "250 CZK", days: "in 16 days"  },
 ] as const;
 
 const STEPS = 28;

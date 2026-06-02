@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Subscription } from "@/lib/types";
 
 type Props = {
   subscriptions: Subscription[];
 };
 
-const DAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-
 export function PaymentCalendar({ subscriptions }: Props) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   const today = new Date();
@@ -18,6 +18,12 @@ export function PaymentCalendar({ subscriptions }: Props) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfWeek = new Date(year, month, 1).getDay();
   const startOffset = (firstDayOfWeek + 6) % 7; // Mon-first offset
+
+  // Use locale-aware short weekday names (Mon-first)
+  const DAY_LABELS = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(2000, 0, 3 + i); // Jan 3 2000 is Monday
+    return d.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2);
+  });
 
   const byDay = new Map<number, Subscription[]>();
   for (const sub of subscriptions) {
@@ -46,15 +52,15 @@ export function PaymentCalendar({ subscriptions }: Props) {
 
   const todayWeekIndex = weeks.findIndex((w) => w.includes(todayDate));
   const displayWeeks = expanded ? weeks : weeks.slice(todayWeekIndex, todayWeekIndex + 1);
-  const monthName = today.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+  const monthName = today.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
   return (
     <View className="rounded-3xl border border-border bg-surface p-5">
       <Pressable onPress={() => setExpanded((v) => !v)}>
         <View className="mb-4 flex-row items-center justify-between">
-          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">Календарь</Text>
+          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("paywall.features.widget")}</Text>
           <Text className="text-xs capitalize text-subtle">
-            {expanded ? monthName : "Показать месяц"}
+            {expanded ? monthName : t("subscriptions.upcoming.title")}
           </Text>
         </View>
       </Pressable>
@@ -107,7 +113,7 @@ export function PaymentCalendar({ subscriptions }: Props) {
 
       {!expanded && weeks.length > 1 ? (
         <Pressable onPress={() => setExpanded(true)} className="mt-2 items-center">
-          <Text className="text-xs text-muted">Показать весь месяц</Text>
+          <Text className="text-xs text-muted">{monthName}</Text>
         </Pressable>
       ) : null}
     </View>

@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
-import { categoryLabels } from "@/lib/catalog";
 import { formatMoney } from "@/lib/subscriptionMath";
 
 type Props = {
@@ -19,14 +19,15 @@ const colors: Record<string, string> = {
 };
 
 export function CategoryPie({ values, primaryCurrency = "CZK", selectedCategory, onSelectCategory }: Props) {
+  const { t } = useTranslation();
   const entries = Object.entries(values).sort((a, b) => b[1] - a[1]);
   const total = entries.reduce((sum, [, value]) => sum + value, 0);
 
   return (
     <View className="rounded-2xl border border-border bg-surface p-4">
-      <Text className="text-xs font-semibold uppercase tracking-widest text-muted">По категориям</Text>
+      <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("stats.categoryFilter")}</Text>
       {entries.length === 0 ? (
-        <Text className="mt-3 text-sm text-subtle">Нет активных подписок для расчёта категорий.</Text>
+        <Text className="mt-3 text-sm text-subtle">{t("home.noSubscriptions")}</Text>
       ) : null}
       <View className="mt-4 gap-3">
         {entries.map(([key, value]) => {
@@ -41,7 +42,7 @@ export function CategoryPie({ values, primaryCurrency = "CZK", selectedCategory,
             <View className="flex-row justify-between">
               <View className="flex-row items-center gap-2">
                 <View className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colors[key] ?? "#6B7280" }} />
-                <Text className="text-sm text-ink">{categoryLabels[key as keyof typeof categoryLabels] ?? key}</Text>
+                <Text className="text-sm text-ink">{t(`categories.${key}`, key)}</Text>
               </View>
               <Text className="text-sm font-medium text-subtle">{formatMoney(value, primaryCurrency)} · {percent}%</Text>
             </View>

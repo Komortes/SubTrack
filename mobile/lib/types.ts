@@ -15,6 +15,9 @@ export type Subscription = {
   color: string;
   notes?: string;
   isActive: boolean;
+  isTrial: boolean;
+  isArchived: boolean;
+  cancelReminderDays?: number | null;
   createdAt: string;
   paymentHistory?: PaymentRecord[];
 };

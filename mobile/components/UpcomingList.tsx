@@ -1,4 +1,5 @@
 import { ScrollView, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { FadeInView } from "@/components/FadeInView";
 import { daysUntil, formatMoney } from "@/lib/subscriptionMath";
@@ -11,19 +12,20 @@ type Props = {
 };
 
 export function UpcomingList({ subscriptions, onPress }: Props) {
+  const { t } = useTranslation();
   const upcoming = subscriptions
-    .filter((item) => item.isActive && daysUntil(item.renewalDate) <= 7)
+    .filter((item) => item.isActive && daysUntil(item.renewalDate) >= 1 && daysUntil(item.renewalDate) <= 7)
     .sort((a, b) => a.renewalDate.localeCompare(b.renewalDate));
 
   if (upcoming.length === 0) {
-    return <Text className="text-sm text-muted">В ближайшие 7 дней списаний нет.</Text>;
+    return <Text className="text-sm text-muted">{t("subscriptions.upcoming.empty")}</Text>;
   }
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
       {upcoming.map((item, index) => {
         const days = daysUntil(item.renewalDate);
-        const dayLabel = days === 0 ? "Сегодня" : `Через ${days} дн.`;
+        const dayLabel = days === 0 ? t("subscriptions.card.today") : t("subscriptions.card.daysLeft", { days });
         return (
           <FadeInView key={item.id} index={index}>
             <AnimatedPressable

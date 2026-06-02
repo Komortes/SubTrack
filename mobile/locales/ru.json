@@ -1,0 +1,275 @@
+{
+  "common": {
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "done": "Готово",
+    "back": "Назад",
+    "add": "Добавить",
+    "confirm": "Подтвердить",
+    "loading": "Загрузка…",
+    "error": "Что-то пошло не так",
+    "offline": "Офлайн",
+    "syncing": "Синхронизация",
+    "synced": "Синхронизировано",
+    "inQueue": "{{count}} в очереди",
+    "perMonth": "/мес",
+    "reset": "Сбросить",
+    "on": "Вкл",
+    "off": "Выкл"
+  },
+  "categories": {
+    "entertainment": "Развлечения",
+    "work": "Работа",
+    "cloud": "Облако",
+    "health": "Здоровье",
+    "other": "Другое"
+  },
+  "billingPeriods": {
+    "weekly": "Еженедельно",
+    "monthly": "Ежемесячно",
+    "yearly": "Ежегодно",
+    "custom": "Кастом"
+  },
+  "onboarding": {
+    "headline": "Подписки\nбез сюрпризов",
+    "subtitle": "Контролируй списания, расходы и уведомления в одном интерфейсе.",
+    "features": {
+      "notifications": "Авто\nуведомления",
+      "forecast": "Прогноз\nтрат",
+      "privacy": "Личные\nданные"
+    },
+    "createAccount": "Создать аккаунт",
+    "continueOffline": "Продолжить офлайн"
+  },
+  "auth": {
+    "login": {
+      "title": "С возвращением",
+      "subtitle": "Войди для синхронизации",
+      "email": "Email",
+      "password": "Пароль",
+      "signIn": "Войти",
+      "noAccount": "Нет аккаунта?",
+      "register": "Зарегистрироваться",
+      "continueOffline": "Продолжить офлайн",
+      "validationError": "Укажи email и пароль.",
+      "forgotPassword": "Забыл пароль?"
+    },
+    "register": {
+      "title": "Создать аккаунт",
+      "subtitle": "Синхронизируй подписки на всех устройствах",
+      "name": "Имя",
+      "email": "Email",
+      "password": "Пароль",
+      "createAccount": "Создать аккаунт",
+      "haveAccount": "Уже есть аккаунт?",
+      "signIn": "Войти",
+      "continueOffline": "Продолжить офлайн",
+      "validationError": "Укажи имя, email и пароль (от 6 символов)."
+    },
+    "social": {
+      "continueWithGoogle": "Продолжить с Google",
+      "orDivider": "или"
+    }
+  },
+  "home": {
+    "title": "SubTrack",
+    "offlineMode": "Офлайн режим",
+    "upcomingRenewals": "Ближайшие списания",
+    "recentlyAdded": "Недавно добавленные",
+    "todayRenewals": "Сегодня списание",
+    "noSubscriptions": "Нет подписок",
+    "noSubscriptionsHint": "Нажми + чтобы добавить первую подписку",
+    "addFirst": "Добавить подписку",
+    "monthly": "В месяц",
+    "yearly": "В год",
+    "syncError": "Ошибка синхронизации"
+  },
+  "subscriptions": {
+    "title": "Подписки",
+    "filters": {
+      "all": "Все",
+      "active": "Активные",
+      "paused": "Пауза"
+    },
+    "sort": {
+      "renewalDate": "По дате",
+      "amount": "По сумме",
+      "name": "По названию",
+      "createdAt": "По дате добавления"
+    },
+    "groups": {
+      "none": "Без группировки",
+      "category": "По категории",
+      "date": "По дате"
+    },
+    "detail": {
+      "renewsIn": "Через {{days}} дней",
+      "renewsToday": "Сегодня списание",
+      "renewedDaysAgo": "Списано {{days}} дней назад",
+      "trial": "Пробный период",
+      "trialEndsIn": "Пробный период заканчивается через {{days}} дней",
+      "archived": "Архив",
+      "paymentHistory": "История платежей",
+      "noPayments": "Нет записей о платежах",
+      "markPaid": "Отметить оплаченным",
+      "archive": "Архивировать",
+      "unarchive": "Разархивировать",
+      "deleteConfirmTitle": "Удалить подписку?",
+      "deleteConfirmMessage": "Это навсегда удалит \"{{name}}\" и всю историю платежей.",
+      "cancelReminderDays": "Напомнить за {{days}} дней"
+    },
+    "card": {
+      "daysLeft": "{{days}}д",
+      "today": "Сегодня",
+      "trial": "Пробный"
+    },
+    "upcoming": {
+      "title": "Ближайшие",
+      "empty": "Нет ближайших списаний"
+    }
+  },
+  "stats": {
+    "title": "Статистика",
+    "subtitle": "Расходы и аналитика по подпискам",
+    "periods": {
+      "month": "Месяц",
+      "quarter": "Квартал",
+      "year": "Год"
+    },
+    "spendingLabel": "Расходы · {{period}}",
+    "metrics": {
+      "average": "Среднее",
+      "active": "Активных",
+      "top": "Топ"
+    },
+    "topSubscriptions": "Топ подписок",
+    "ofPeriod": "{{percent}}% периода",
+    "nextMonth": "Следующий месяц",
+    "proLocked": "Обновись до Pro для просмотра аналитики",
+    "categoryFilter": "Фильтр по категории",
+    "resetFilter": "Сбросить",
+    "monthlyChart": "Расходы по месяцам"
+  },
+  "settings": {
+    "title": "Настройки",
+    "sections": {
+      "notifications": "Уведомления",
+      "display": "Отображение",
+      "account": "Аккаунт",
+      "data": "Данные",
+      "security": "Безопасность",
+      "pro": "Pro"
+    },
+    "rows": {
+      "notify3Days": "За 3 дня до списания",
+      "notify1Day": "За 1 день до списания",
+      "notifyOnDay": "В день списания",
+      "notificationTime": "Время уведомления",
+      "currency": "Основная валюта",
+      "dateFormat": "Формат даты",
+      "theme": "Тема",
+      "themeSystem": "Системная",
+      "themeDark": "Тёмная",
+      "themeLight": "Светлая",
+      "exportCsv": "Экспорт CSV",
+      "exportCsvSubtitle": "Pro — экспорт подписок",
+      "importCsv": "Импорт CSV",
+      "icloudBackup": "iCloud Backup",
+      "icloudBackupSubtitle": "Pro — автобэкап в iCloud",
+      "backupNow": "Сделать бэкап",
+      "restoreBackup": "Восстановить",
+      "lastBackup": "Последний бэкап: {{date}}",
+      "neverBacked": "Бэкап не сделан",
+      "biometricLock": "Блокировка Face ID / Touch ID",
+      "lockTimeout": "Блокировать через",
+      "lockTimeout1": "1 минуту",
+      "lockTimeout5": "5 минут",
+      "lockTimeout15": "15 минут",
+      "lockTimeout60": "1 час",
+      "upgradeToPro": "Перейти на Pro",
+      "proActive": "Pro — Активна",
+      "managePro": "Управление подпиской",
+      "syncStatus": "Статус синхронизации",
+      "syncedAs": "Синхронизировано как {{email}}",
+      "offlineMode": "Офлайн режим",
+      "offlineModeSubtitle": "Данные остаются на устройстве",
+      "signOut": "Выйти",
+      "signOutConfirmTitle": "Выйти?",
+      "signOutConfirmMessage": "Локальные данные будут удалены.",
+      "deleteAllData": "Удалить все данные",
+      "deleteConfirmTitle": "Удалить все данные?",
+      "deleteConfirmMessage": "Это навсегда удалит все подписки и настройки.",
+      "pendingSync": "{{count}} изменений в очереди"
+    },
+    "syncError": "Ошибка синхронизации. Настройки сохранены локально."
+  },
+  "subscriptionForm": {
+    "newTitle": "Новая подписка",
+    "editTitle": "Редактировать",
+    "fields": {
+      "name": "Название",
+      "namePlaceholder": "например Netflix",
+      "amount": "Сумма",
+      "currency": "Валюта",
+      "billingPeriod": "Период списания",
+      "customPeriodDays": "Каждые {{days}} дней",
+      "renewalDate": "Дата следующего списания",
+      "category": "Категория",
+      "notes": "Заметка",
+      "notesPlaceholder": "Необязательная заметка…",
+      "cancelReminderDays": "Напомнить за (дней)",
+      "cancelReminderNone": "Без напоминания",
+      "isTrial": "Пробный период",
+      "isActive": "Активна"
+    },
+    "suggestions": "Предложения",
+    "validationError": "Название и сумма обязательны.",
+    "saveButton": "Сохранить подписку",
+    "deleteButton": "Удалить подписку"
+  },
+  "paywall": {
+    "title": "SubTrack Pro",
+    "subtitle": "Разблокируй всё",
+    "trial": "14 дней бесплатно",
+    "features": {
+      "unlimited": "Безлимитные подписки",
+      "stats": "Полная аналитика расходов",
+      "export": "Экспорт в CSV",
+      "backup": "iCloud бэкап",
+      "widget": "Виджет на экране"
+    },
+    "monthly": "В месяц",
+    "annual": "В год",
+    "annualBadge": "Скидка 33%",
+    "startTrial": "Начать 14 дней бесплатно",
+    "restore": "Восстановить покупку",
+    "terms": "Условия использования",
+    "privacy": "Политика конфиденциальности",
+    "cancelAnytime": "Отмена в любое время",
+    "loading": "Загрузка предложений…",
+    "error": "Не удалось загрузить предложения. Попробуй снова.",
+    "purchaseError": "Ошибка покупки. Попробуй снова.",
+    "restoreError": "Активная подписка не найдена.",
+    "restoreSuccess": "Pro доступ восстановлен!"
+  },
+  "proGate": {
+    "limitReached": "Достигнут лимит в 5 подписок",
+    "limitHint": "Перейди на Pro для безлимитных подписок",
+    "upgradeButton": "Перейти на Pro"
+  },
+  "lockScreen": {
+    "title": "SubTrack",
+    "subtitle": "Нажми чтобы разблокировать",
+    "unlockButton": "Разблокировать Face ID",
+    "unlockError": "Ошибка аутентификации. Попробуй снова."
+  },
+  "backup": {
+    "exportSuccess": "Бэкап успешно экспортирован",
+    "exportError": "Ошибка экспорта",
+    "restoreSuccess": "Восстановлено {{count}} подписок",
+    "restoreError": "Не удалось прочитать файл бэкапа",
+    "invalidFile": "Неверный файл бэкапа"
+  }
+}

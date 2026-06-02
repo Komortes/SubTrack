@@ -31,7 +31,7 @@ class SubscriptionController extends Controller
     public function update(Request $request, Subscription $subscription)
     {
         $this->authorizeUser($request, $subscription);
-        $subscription->update($this->validateSubscription($request, partial: true));
+        $subscription->update($this->validateSubscription($request, partial: true, ignoreId: $subscription->id));
 
         return $subscription->load(['paymentRecords' => fn ($query) => $query->limit(5)]);
     }
@@ -58,12 +58,15 @@ class SubscriptionController extends Controller
         return $service->renew($subscription);
     }
 
-    private function validateSubscription(Request $request, bool $partial = false): array
+    private function validateSubscription(Request $request, bool $partial = false, ?string $ignoreId = null): array
     {
         $required = $partial ? 'sometimes' : 'required';
+        $idRule = $ignoreId
+            ? ['sometimes', 'uuid', "unique:subscriptions,id,{$ignoreId}"]
+            : ['sometimes', 'uuid', 'unique:subscriptions,id'];
 
         return $request->validate([
-            'id' => ['sometimes', 'uuid', 'unique:subscriptions,id'],
+            'id' => $idRule,
             'name' => [$required, 'string', 'max:120'],
             'amount' => [$required, 'numeric', 'min:0'],
             'currency' => [$required, 'in:CZK,EUR,USD'],
@@ -75,6 +78,9 @@ class SubscriptionController extends Controller
             'color' => ['nullable', 'string', 'max:24'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
+            'is_trial' => ['sometimes', 'boolean'],
+            'is_archived' => ['sometimes', 'boolean'],
+            'cancel_reminder_days' => ['nullable', 'integer', 'in:1,2,3,7'],
         ]);
     }
 

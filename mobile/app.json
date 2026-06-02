@@ -3,12 +3,20 @@
     "name": "SubTrack",
     "slug": "subtrack",
     "scheme": "subtrack",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "extra": {
+      "eas": {
+        "projectId": "FILL_IN_AFTER_EAS_INIT"
+      }
+    },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "app.subtrack.mobile"
+      "supportsTablet": false,
+      "bundleIdentifier": "app.subtrack.mobile",
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.app.subtrack.mobile"]
+      }
     },
     "android": {
       "package": "app.subtrack.mobile"
@@ -17,7 +25,10 @@
       "expo-router",
       "expo-secure-store",
       "expo-notifications",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-local-authentication",
+      "react-native-purchases",
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": false

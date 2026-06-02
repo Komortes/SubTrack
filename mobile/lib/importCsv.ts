@@ -71,6 +71,9 @@ function toSubscription(record: Record<string, string>): Subscription | null {
     color: record.color || "#0F766E",
     notes: record.notes || undefined,
     isActive: record.is_active ? record.is_active.toLowerCase() !== "false" : true,
+    isTrial: false,
+    isArchived: false,
+    cancelReminderDays: null,
     createdAt: record.created_at || new Date().toISOString()
   };
 }

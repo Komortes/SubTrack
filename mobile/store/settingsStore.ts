@@ -3,13 +3,20 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import * as api from "@/lib/api";
 import { enqueueMutation, flushOfflineQueue } from "@/lib/sync";
+import i18next from "@/lib/i18n";
+
+type BiometricTimeout = 1 | 5 | 15 | 60;
 
 type SettingsState = api.UserSettings & {
   isSyncing: boolean;
   syncError: string | null;
+  biometricLockEnabled: boolean;
+  biometricLockTimeout: BiometricTimeout;
   resetSettings: () => void;
   syncFromServer: () => Promise<void>;
   updateSettings: (patch: Partial<api.UserSettings>, syncWithServer?: boolean) => Promise<void>;
+  setBiometricLock: (enabled: boolean) => void;
+  setBiometricLockTimeout: (timeout: BiometricTimeout) => void;
 };
 
 const defaults: api.UserSettings = {
@@ -28,7 +35,9 @@ export const useSettingsStore = create<SettingsState>()(
       ...defaults,
       isSyncing: false,
       syncError: null,
-      resetSettings: () => set({ ...defaults, isSyncing: false, syncError: null }),
+      biometricLockEnabled: false,
+      biometricLockTimeout: 5 satisfies BiometricTimeout,
+      resetSettings: () => set({ ...defaults, isSyncing: false, syncError: null, biometricLockEnabled: false, biometricLockTimeout: 5 satisfies BiometricTimeout }),
       syncFromServer: async () => {
         set({ isSyncing: true, syncError: null });
         try {
@@ -38,7 +47,7 @@ export const useSettingsStore = create<SettingsState>()(
         } catch (error) {
           set({
             isSyncing: false,
-            syncError: error instanceof Error ? error.message : "Не удалось синхронизировать настройки"
+            syncError: error instanceof Error ? error.message : i18next.t("settings.syncError")
           });
           throw error;
         }
@@ -69,10 +78,12 @@ export const useSettingsStore = create<SettingsState>()(
             createdAt: new Date().toISOString()
           });
           set({
-            syncError: error instanceof Error ? `${error.message}. Настройки сохранены локально` : "Настройки сохранены локально"
+            syncError: error instanceof Error ? `${error.message}. ${i18next.t("settings.syncError")}` : i18next.t("settings.syncError")
           });
         }
-      }
+      },
+      setBiometricLock: (enabled) => set({ biometricLockEnabled: enabled }),
+      setBiometricLockTimeout: (timeout) => set({ biometricLockTimeout: timeout }),
     }),
     {
       name: "subtrack:settings",

@@ -27,12 +27,17 @@ class Subscription extends Model
         'color',
         'notes',
         'is_active',
+        'is_trial',
+        'is_archived',
+        'cancel_reminder_days',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'renewal_date' => 'date',
         'is_active' => 'boolean',
+        'is_trial' => 'boolean',
+        'is_archived' => 'boolean',
     ];
 
     public function user(): BelongsTo

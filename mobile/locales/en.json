@@ -1,0 +1,275 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "done": "Done",
+    "back": "Back",
+    "add": "Add",
+    "confirm": "Confirm",
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "offline": "Offline",
+    "syncing": "Syncing",
+    "synced": "Synced",
+    "inQueue": "{{count}} queued",
+    "perMonth": "/mo",
+    "reset": "Reset",
+    "on": "On",
+    "off": "Off"
+  },
+  "categories": {
+    "entertainment": "Entertainment",
+    "work": "Work",
+    "cloud": "Cloud",
+    "health": "Health",
+    "other": "Other"
+  },
+  "billingPeriods": {
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "custom": "Custom"
+  },
+  "onboarding": {
+    "headline": "Subscriptions\nwithout surprises",
+    "subtitle": "Track charges, spending, and notifications in one interface.",
+    "features": {
+      "notifications": "Auto\nnotifications",
+      "forecast": "Spending\nforecast",
+      "privacy": "Private\ndata"
+    },
+    "createAccount": "Create account",
+    "continueOffline": "Continue offline"
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to sync across devices",
+      "email": "Email",
+      "password": "Password",
+      "signIn": "Sign in",
+      "noAccount": "Don't have an account?",
+      "register": "Register",
+      "continueOffline": "Continue offline",
+      "validationError": "Enter a valid email and password.",
+      "forgotPassword": "Forgot password?"
+    },
+    "register": {
+      "title": "Create account",
+      "subtitle": "Sync your subscriptions across devices",
+      "name": "Name",
+      "email": "Email",
+      "password": "Password",
+      "createAccount": "Create account",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "continueOffline": "Continue offline",
+      "validationError": "Enter name, a valid email, and a password (6+ chars)."
+    },
+    "social": {
+      "continueWithGoogle": "Continue with Google",
+      "orDivider": "or"
+    }
+  },
+  "home": {
+    "title": "SubTrack",
+    "offlineMode": "Offline mode",
+    "upcomingRenewals": "Upcoming renewals",
+    "recentlyAdded": "Recently added",
+    "todayRenewals": "Renewing today",
+    "noSubscriptions": "No subscriptions yet",
+    "noSubscriptionsHint": "Tap + to add your first subscription",
+    "addFirst": "Add subscription",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "syncError": "Sync failed"
+  },
+  "subscriptions": {
+    "title": "Subscriptions",
+    "filters": {
+      "all": "All",
+      "active": "Active",
+      "paused": "Paused"
+    },
+    "sort": {
+      "renewalDate": "By date",
+      "amount": "By amount",
+      "name": "By name",
+      "createdAt": "By added date"
+    },
+    "groups": {
+      "none": "None",
+      "category": "Category",
+      "date": "Date"
+    },
+    "detail": {
+      "renewsIn": "Renews in {{days}} days",
+      "renewsToday": "Renews today",
+      "renewedDaysAgo": "Renewed {{days}} days ago",
+      "trial": "Trial",
+      "trialEndsIn": "Trial ends in {{days}} days",
+      "archived": "Archived",
+      "paymentHistory": "Payment history",
+      "noPayments": "No payments recorded",
+      "markPaid": "Mark as paid",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "deleteConfirmTitle": "Delete subscription?",
+      "deleteConfirmMessage": "This will permanently delete \"{{name}}\" and all its payment history.",
+      "cancelReminderDays": "Cancel reminder {{days}} days before"
+    },
+    "card": {
+      "daysLeft": "{{days}}d",
+      "today": "Today",
+      "trial": "Trial"
+    },
+    "upcoming": {
+      "title": "Upcoming",
+      "empty": "No upcoming renewals"
+    }
+  },
+  "stats": {
+    "title": "Statistics",
+    "subtitle": "Spending & subscription analytics",
+    "periods": {
+      "month": "Month",
+      "quarter": "Quarter",
+      "year": "Year"
+    },
+    "spendingLabel": "Spending · {{period}}",
+    "metrics": {
+      "average": "Average",
+      "active": "Active",
+      "top": "Top"
+    },
+    "topSubscriptions": "Top subscriptions",
+    "ofPeriod": "{{percent}}% of period",
+    "nextMonth": "Next month",
+    "proLocked": "Upgrade to Pro to see your analytics",
+    "categoryFilter": "Filter by category",
+    "resetFilter": "Reset",
+    "monthlyChart": "Monthly spending"
+  },
+  "settings": {
+    "title": "Settings",
+    "sections": {
+      "notifications": "Notifications",
+      "display": "Display",
+      "account": "Account",
+      "data": "Data",
+      "security": "Security",
+      "pro": "Pro"
+    },
+    "rows": {
+      "notify3Days": "3 days before renewal",
+      "notify1Day": "1 day before renewal",
+      "notifyOnDay": "On renewal day",
+      "notificationTime": "Notification time",
+      "currency": "Primary currency",
+      "dateFormat": "Date format",
+      "theme": "Theme",
+      "themeSystem": "System",
+      "themeDark": "Dark",
+      "themeLight": "Light",
+      "exportCsv": "Export CSV",
+      "exportCsvSubtitle": "Pro — export your subscriptions",
+      "importCsv": "Import CSV",
+      "icloudBackup": "iCloud Backup",
+      "icloudBackupSubtitle": "Pro — auto-backup to iCloud",
+      "backupNow": "Back up now",
+      "restoreBackup": "Restore from backup",
+      "lastBackup": "Last backup: {{date}}",
+      "neverBacked": "Never backed up",
+      "biometricLock": "Face ID / Touch ID lock",
+      "lockTimeout": "Lock after",
+      "lockTimeout1": "1 minute",
+      "lockTimeout5": "5 minutes",
+      "lockTimeout15": "15 minutes",
+      "lockTimeout60": "1 hour",
+      "upgradeToPro": "Upgrade to Pro",
+      "proActive": "Pro — Active",
+      "managePro": "Manage subscription",
+      "syncStatus": "Sync status",
+      "syncedAs": "Synced as {{email}}",
+      "offlineMode": "Offline mode",
+      "offlineModeSubtitle": "Data stays on device",
+      "signOut": "Sign out",
+      "signOutConfirmTitle": "Sign out?",
+      "signOutConfirmMessage": "Your local data will be cleared.",
+      "deleteAllData": "Delete all data",
+      "deleteConfirmTitle": "Delete all data?",
+      "deleteConfirmMessage": "This will permanently delete all your subscriptions and settings.",
+      "pendingSync": "{{count}} changes pending sync"
+    },
+    "syncError": "Sync failed. Settings saved locally."
+  },
+  "subscriptionForm": {
+    "newTitle": "New Subscription",
+    "editTitle": "Edit Subscription",
+    "fields": {
+      "name": "Name",
+      "namePlaceholder": "e.g. Netflix",
+      "amount": "Amount",
+      "currency": "Currency",
+      "billingPeriod": "Billing period",
+      "customPeriodDays": "Every {{days}} days",
+      "renewalDate": "Next renewal date",
+      "category": "Category",
+      "notes": "Notes",
+      "notesPlaceholder": "Optional note…",
+      "cancelReminderDays": "Cancel reminder (days before)",
+      "cancelReminderNone": "No reminder",
+      "isTrial": "This is a trial",
+      "isActive": "Active"
+    },
+    "suggestions": "Suggestions",
+    "validationError": "Name and amount are required.",
+    "saveButton": "Save subscription",
+    "deleteButton": "Delete subscription"
+  },
+  "paywall": {
+    "title": "SubTrack Pro",
+    "subtitle": "Unlock everything",
+    "trial": "14-day free trial",
+    "features": {
+      "unlimited": "Unlimited subscriptions",
+      "stats": "Full spending analytics",
+      "export": "CSV export",
+      "backup": "iCloud backup",
+      "widget": "Home screen widget"
+    },
+    "monthly": "Monthly",
+    "annual": "Annual",
+    "annualBadge": "Save 33%",
+    "startTrial": "Start 14-day free trial",
+    "restore": "Restore purchase",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "cancelAnytime": "Cancel anytime",
+    "loading": "Loading offers…",
+    "error": "Could not load offers. Try again.",
+    "purchaseError": "Purchase failed. Please try again.",
+    "restoreError": "No active subscription found.",
+    "restoreSuccess": "Pro access restored!"
+  },
+  "proGate": {
+    "limitReached": "You've reached the 5-subscription limit",
+    "limitHint": "Upgrade to Pro for unlimited subscriptions",
+    "upgradeButton": "Upgrade to Pro"
+  },
+  "lockScreen": {
+    "title": "SubTrack",
+    "subtitle": "Tap to unlock",
+    "unlockButton": "Unlock with Face ID",
+    "unlockError": "Authentication failed. Try again."
+  },
+  "backup": {
+    "exportSuccess": "Backup exported successfully",
+    "exportError": "Export failed",
+    "restoreSuccess": "{{count}} subscriptions restored",
+    "restoreError": "Could not read backup file",
+    "invalidFile": "Invalid backup file"
+  }
+}

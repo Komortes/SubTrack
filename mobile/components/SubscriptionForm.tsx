@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { haptic } from "@/lib/haptics";
 import { billingPeriods, categories, currencies, iconColors, serviceIconOptions, serviceSuggestions } from "@/lib/catalog";
@@ -42,12 +43,6 @@ function addMonths(value: string, months: number): string {
   return toIsoDate(date);
 }
 
-const monthNames = [
-  "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-  "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-];
-const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-
 function Label({ children, top }: { children: React.ReactNode; top?: boolean }) {
   return (
     <Text className={`${top ? "" : "mt-5"} mb-2.5 text-sm font-semibold text-muted`}>
@@ -56,12 +51,51 @@ function Label({ children, top }: { children: React.ReactNode; top?: boolean }) 
   );
 }
 
-function DateSelector({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function FormStepHeader({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <View className="mb-4 flex-row items-center gap-3">
+      <View className="h-10 w-10 items-center justify-center rounded-2xl bg-bg">
+        <Feather name={icon} size={17} color="#a3a3a3" />
+      </View>
+      <View className="flex-1">
+        <Text className="text-base font-bold text-ink">{title}</Text>
+        <Text className="mt-0.5 text-xs text-muted">{subtitle}</Text>
+      </View>
+    </View>
+  );
+}
+
+function DateSelector({ value, onChange, minDate }: { value: string; onChange: (value: string) => void; minDate?: string }) {
+  const { t } = useTranslation();
   const dateFormat = useSettingsStore((state) => state.dateFormat);
   const selectedDate = toDate(value);
   const [visibleMonth, setVisibleMonth] = useState(
     new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
   );
+
+  // Use locale-based month names
+  const monthNames = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) =>
+      new Date(2000, i, 1).toLocaleDateString(undefined, { month: "long" })
+    );
+  }, []);
+
+  // Use locale-based weekday abbreviations (Mon-first)
+  const weekDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      // Start from Monday (index 1), wrap Sunday (index 0) to end
+      const day = new Date(2000, 0, 3 + i); // Jan 3 2000 is Monday
+      return day.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2);
+    });
+  }, []);
 
   const days = useMemo(() => {
     const year = visibleMonth.getFullYear();
@@ -99,7 +133,7 @@ function DateSelector({ value, onChange }: { value: string; onChange: (value: st
           <Text className="text-base font-semibold text-ink">
             {monthNames[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}
           </Text>
-          <Text className="mt-0.5 text-xs text-muted">Выбрано: {formatDate(value, dateFormat)}</Text>
+          <Text className="mt-0.5 text-xs text-muted">{formatDate(value, dateFormat)}</Text>
         </View>
         <AnimatedPressable
           className="h-10 w-10 items-center justify-center rounded-full border border-border bg-surface"
@@ -111,7 +145,13 @@ function DateSelector({ value, onChange }: { value: string; onChange: (value: st
       </View>
 
       <View className="mt-4 flex-row gap-2">
-        {([["Сегодня", today()], ["+7 дней", addDays(today(), 7)], ["+1 месяц", addMonths(today(), 1)]] as [string, string][]).map(([label, next]) => (
+        {([
+          [t("subscriptions.card.today"), today()],
+          ["+7d", addDays(today(), 7)],
+          ["+1mo", addMonths(today(), 1)]
+        ] as [string, string][])
+        .filter(([, next]) => !minDate || next >= minDate)
+        .map(([label, next]) => (
           <AnimatedPressable
             key={label}
             className={`h-10 flex-1 items-center justify-center rounded-full border px-2 ${value === next ? "border-ink bg-ink" : "border-border bg-surface"}`}
@@ -136,15 +176,16 @@ function DateSelector({ value, onChange }: { value: string; onChange: (value: st
           const iso = day ? toIsoDate(day) : "";
           const selected = iso === value;
           const isToday = iso === today();
+          const isPast = !!minDate && iso < minDate;
           return (
             <View key={`${iso}-${index}`} style={{ width: `${100 / 7}%`, padding: 2 }}>
               {day ? (
                 <AnimatedPressable
                   className={`h-10 items-center justify-center rounded-full ${
-                    selected ? "bg-ink" : isToday ? "border border-border bg-surface" : "bg-transparent"
+                    selected ? "bg-ink" : isToday ? "border border-border bg-surface" : isPast ? "opacity-20" : "bg-transparent"
                   }`}
                   hitSlop={2}
-                  onPress={() => onChange(iso)}
+                  onPress={() => { if (!isPast) onChange(iso); }}
                 >
                   <Text className={`text-sm font-semibold ${selected ? "text-bg" : "text-ink"}`}>
                     {day.getDate()}
@@ -162,6 +203,7 @@ function DateSelector({ value, onChange }: { value: string; onChange: (value: st
 }
 
 export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const primaryCurrency = useSettingsStore((state) => state.primaryCurrency);
   const [name, setName] = useState(initialValue?.name ?? "");
@@ -179,13 +221,33 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [iconsExpanded, setIconsExpanded] = useState(false);
+  const [appearanceExpanded, setAppearanceExpanded] = useState(!!initialValue);
+  const [isTrial, setIsTrial] = useState(initialValue?.isTrial ?? false);
+  const [cancelReminderDays, setCancelReminderDays] = useState<number | null>(initialValue?.cancelReminderDays ?? null);
+
+  // Translated billing periods — built dynamically so t() is in scope
+  const translatedBillingPeriods = billingPeriods.map((b) => ({
+    ...b,
+    label: t(`billingPeriods.${b.value}`)
+  }));
+
+  // Translated categories
+  const translatedCategories = categories.map((c) => ({
+    ...c,
+    label: t(`categories.${c.value}`)
+  }));
 
   // Smart suggestions based on name input
   const nameSuggestions = useMemo(() => {
     const trimmed = name.trim();
     if (trimmed.length < 1) return [];
     const lower = trimmed.toLowerCase();
-    return serviceSuggestions.filter((s) => s.name.toLowerCase().startsWith(lower) && s.name.toLowerCase() !== lower);
+    return serviceSuggestions
+      .filter((s) => {
+        const searchable = [s.name, ...(s.aliases ?? [])].map((value) => value.toLowerCase());
+        return searchable.some((value) => value.startsWith(lower) || value.includes(lower)) && s.name.toLowerCase() !== lower;
+      })
+      .slice(0, 8);
   }, [name]);
 
   function applySuggestion(suggestion: (typeof serviceSuggestions)[number]) {
@@ -203,15 +265,15 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
     const parsedCustomDays = Number(customPeriodDays);
 
     if (!trimmedName) {
-      setFormError("Добавь название подписки.");
+      setFormError(t("subscriptionForm.validationError"));
       return;
     }
     if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-      setFormError("Укажи сумму больше нуля.");
+      setFormError(t("subscriptionForm.validationError"));
       return;
     }
     if (billingPeriod === "custom" && (Number.isNaN(parsedCustomDays) || parsedCustomDays <= 0)) {
-      setFormError("Для кастомного периода укажи интервал в днях.");
+      setFormError(t("subscriptionForm.validationError"));
       return;
     }
 
@@ -249,10 +311,13 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
         category,
         iconSlug: iconSlug || undefined,
         color,
-        notes: notes.trim() || undefined
+        notes: notes.trim() || undefined,
+        isTrial,
+        isArchived: initialValue?.isArchived ?? false,
+        cancelReminderDays: cancelReminderDays ?? null
       });
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Не удалось сохранить подписку.");
+      setFormError(error instanceof Error ? error.message : t("subscriptionForm.validationError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -267,25 +332,29 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
         contentContainerClassName="gap-5 px-5 pt-5"
       >
 
-        {/* Live preview */}
-        <View className="flex-row items-center gap-4 rounded-2xl border border-border bg-surface p-5">
+        <View className="flex-row items-center gap-4 rounded-3xl border border-border bg-surface p-5">
           <ServiceIcon name={name || "?"} iconSlug={iconSlug || undefined} color={color} size={56} />
           <View className="flex-1">
             <Text className="text-xl font-bold text-ink" numberOfLines={1}>
-              {name.trim() || "Название сервиса"}
+              {name.trim() || t("subscriptionForm.fields.namePlaceholder")}
             </Text>
             <Text className="mt-1 text-sm text-muted">
-              {amount || "0"} {currency} · {billingPeriods.find((b) => b.value === billingPeriod)?.label ?? ""}
+              {amount || "0"} {currency} · {translatedBillingPeriods.find((b) => b.value === billingPeriod)?.label ?? ""}
             </Text>
           </View>
+          <View className="h-12 w-1 rounded-full" style={{ backgroundColor: color }} />
         </View>
 
-        {/* Section: Service */}
         <View className="rounded-2xl border border-border bg-surface p-5">
-          <Label top>Название</Label>
+          <FormStepHeader
+            icon="credit-card"
+            title={t("subscriptionForm.fields.name")}
+            subtitle={t("subscriptionForm.fields.category")}
+          />
+          <Label top>{t("subscriptionForm.fields.name")}</Label>
           <TextInput
             className={`rounded-xl border bg-bg px-4 py-4 text-base text-ink ${formError && !name.trim() ? "border-danger" : "border-border"}`}
-            placeholder="Spotify, Netflix, iCloud..."
+            placeholder={t("subscriptionForm.fields.namePlaceholder")}
             placeholderTextColor="#525252"
             value={name}
             onChangeText={(v) => { setName(v); if (formError) setFormError(null); }}
@@ -308,9 +377,9 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
             </View>
           ) : null}
 
-          <Label>Категория</Label>
+          <Label>{t("subscriptionForm.fields.category")}</Label>
           <View className="flex-row flex-wrap gap-2">
-            {categories.map((item) => {
+            {translatedCategories.map((item) => {
               type FeatherIcon = keyof typeof Feather.glyphMap;
               const iconName: FeatherIcon =
                 item.value === "entertainment" ? "tv"
@@ -335,61 +404,83 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
             })}
           </View>
 
-          <Label>Иконка</Label>
-          <View className="flex-row flex-wrap gap-3">
-            {(iconsExpanded ? serviceIconOptions : serviceIconOptions.slice(0, 8)).map((item) => {
-              const selected = iconSlug === item.slug;
-              return (
+          <AnimatedPressable
+            className="mt-5 flex-row items-center justify-between rounded-2xl border border-border bg-bg px-4 py-3.5"
+            onPress={() => setAppearanceExpanded((value) => !value)}
+          >
+            <View className="flex-row items-center gap-3">
+              <View className="h-8 w-8 rounded-full" style={{ backgroundColor: color }} />
+              <View>
+                <Text className="text-sm font-semibold text-ink">{t("subscriptionForm.fields.currency")}</Text>
+                <Text className="mt-0.5 text-xs text-muted">{t("subscriptionForm.fields.category")}</Text>
+              </View>
+            </View>
+            <Feather name={appearanceExpanded ? "chevron-up" : "chevron-down"} size={18} color="#a3a3a3" />
+          </AnimatedPressable>
+
+          {appearanceExpanded ? (
+            <View>
+              <Label>{t("subscriptionForm.fields.name")}</Label>
+              <View className="flex-row flex-wrap gap-3">
+                {(iconsExpanded ? serviceIconOptions : serviceIconOptions.slice(0, 8)).map((item) => {
+                  const selected = iconSlug === item.slug;
+                  return (
+                    <AnimatedPressable
+                      key={item.label}
+                      className={`items-center justify-center rounded-2xl border p-2 ${selected ? "border-ink bg-ink" : "border-border bg-bg"}`}
+                      style={{ width: "22%", aspectRatio: 1 }}
+                      onPress={() => setIconSlug(item.slug)}
+                    >
+                      <ServiceIcon
+                        name={name || item.label}
+                        iconSlug={item.slug || undefined}
+                        color={color}
+                        size={34}
+                      />
+                      <Text className={`mt-1 text-[10px] font-semibold ${selected ? "text-bg" : "text-muted"}`} numberOfLines={1}>
+                        {item.label}
+                      </Text>
+                    </AnimatedPressable>
+                  );
+                })}
+              </View>
+              {!iconsExpanded ? (
                 <AnimatedPressable
-                  key={item.label}
-                  className={`items-center justify-center rounded-2xl border p-2 ${selected ? "border-ink bg-ink" : "border-border bg-bg"}`}
-                  style={{ width: "22%", aspectRatio: 1 }}
-                  onPress={() => setIconSlug(item.slug)}
+                  className="mt-3 items-center rounded-xl border border-border bg-bg py-2.5"
+                  onPress={() => setIconsExpanded(true)}
                 >
-                  <ServiceIcon
-                    name={name || item.label}
-                    iconSlug={item.slug || undefined}
-                    color={color}
-                    size={34}
-                  />
-                  <Text className={`mt-1 text-[10px] font-semibold ${selected ? "text-bg" : "text-muted"}`} numberOfLines={1}>
-                    {item.label}
+                  <Text className="text-xs font-semibold text-muted">
+                    +{serviceIconOptions.length - 8}
                   </Text>
                 </AnimatedPressable>
-              );
-            })}
-          </View>
-          {!iconsExpanded ? (
-            <AnimatedPressable
-              className="mt-3 items-center rounded-xl border border-border bg-bg py-2.5"
-              onPress={() => setIconsExpanded(true)}
-            >
-              <Text className="text-xs font-semibold text-muted">
-                Ещё {serviceIconOptions.length - 8} →
-              </Text>
-            </AnimatedPressable>
-          ) : null}
+              ) : null}
 
-          <Label>Цвет</Label>
-          <View className="flex-row flex-wrap gap-3">
-            {iconColors.map((item) => {
-              const selected = color.toLowerCase() === item.toLowerCase();
-              return (
-                <AnimatedPressable
-                  key={item}
-                  className={`h-12 w-12 items-center justify-center rounded-full border ${selected ? "border-ink" : "border-transparent"}`}
-                  onPress={() => setColor(item)}
-                >
-                  <View className="h-9 w-9 rounded-full" style={{ backgroundColor: item }} />
-                </AnimatedPressable>
-              );
-            })}
-          </View>
+              <Label>{t("subscriptionForm.fields.currency")}</Label>
+              <View className="flex-row flex-wrap gap-3">
+                {iconColors.map((item) => {
+                  const selected = color.toLowerCase() === item.toLowerCase();
+                  return (
+                    <AnimatedPressable
+                      key={item}
+                      className={`h-12 w-12 items-center justify-center rounded-full border ${selected ? "border-ink" : "border-transparent"}`}
+                      onPress={() => setColor(item)}
+                    >
+                      <View className="h-9 w-9 rounded-full" style={{ backgroundColor: item }} />
+                    </AnimatedPressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
         </View>
 
-        {/* Section: Cost */}
         <View className="rounded-2xl border border-border bg-surface p-5">
-          <Label top>Сумма</Label>
+          <FormStepHeader
+            icon="dollar-sign"
+            title={t("subscriptionForm.fields.amount")}
+            subtitle={t("subscriptionForm.fields.currency")}
+          />
+          <Label top>{t("subscriptionForm.fields.amount")}</Label>
           <TextInput
             className={`rounded-xl border bg-bg px-4 py-4 text-2xl font-bold text-ink ${formError && Number(amount.replace(",", ".")) <= 0 ? "border-danger" : "border-border"}`}
             placeholder="0.00"
@@ -399,7 +490,7 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
             onChangeText={(v) => { setAmount(v); if (formError) setFormError(null); }}
           />
 
-          <Label>Валюта</Label>
+          <Label>{t("subscriptionForm.fields.currency")}</Label>
           <View className="flex-row rounded-xl border border-border bg-bg p-1">
             {currencies.map((item) => (
               <AnimatedPressable
@@ -416,18 +507,23 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
           </View>
         </View>
 
-        {/* Section: Schedule */}
         <View className="rounded-2xl border border-border bg-surface p-5">
-          <Label top>Период</Label>
+          <FormStepHeader
+            icon="calendar"
+            title={t("subscriptionForm.fields.billingPeriod")}
+            subtitle={t("subscriptionForm.fields.renewalDate")}
+          />
+          <Label top>{t("subscriptionForm.fields.billingPeriod")}</Label>
           <View className="flex-row flex-wrap gap-2">
-            {billingPeriods.map((item) => (
+            {translatedBillingPeriods.map((item) => (
               <AnimatedPressable
                 key={item.value}
-                className={`rounded-full border px-5 py-2.5 ${billingPeriod === item.value ? "border-ink bg-ink" : "border-border bg-bg"}`}
+                className={`h-11 items-center justify-center rounded-xl border ${billingPeriod === item.value ? "border-ink bg-ink" : "border-border bg-bg"}`}
+                style={{ width: "48%" }}
                 hitSlop={4}
                 onPress={() => setBillingPeriod(item.value)}
               >
-                <Text className={billingPeriod === item.value ? "font-semibold text-bg" : "font-semibold text-muted"}>
+                <Text className={billingPeriod === item.value ? "text-sm font-semibold text-bg" : "text-sm font-semibold text-muted"}>
                   {item.label}
                 </Text>
               </AnimatedPressable>
@@ -436,10 +532,10 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
 
           {billingPeriod === "custom" ? (
             <>
-              <Label>Интервал (дней)</Label>
+              <Label>{t("subscriptionForm.fields.customPeriodDays", { days: customPeriodDays })}</Label>
               <TextInput
                 className={`rounded-xl border bg-bg px-4 py-4 text-base text-ink ${formError && Number(customPeriodDays) <= 0 ? "border-danger" : "border-border"}`}
-                placeholder="Каждые X дней"
+                placeholder={t("subscriptionForm.fields.customPeriodDays", { days: "X" })}
                 placeholderTextColor="#525252"
                 keyboardType="number-pad"
                 value={customPeriodDays}
@@ -448,24 +544,72 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
             </>
           ) : null}
 
-          <Label>Дата следующего списания</Label>
-          <DateSelector value={renewalDate} onChange={setRenewalDate} />
+          <Label>{isTrial ? t("subscriptions.detail.trialEndsIn", { days: 0 }) : t("subscriptionForm.fields.renewalDate")}</Label>
+          <DateSelector value={renewalDate} onChange={setRenewalDate} minDate={isTrial ? today() : undefined} />
           {renewalDate < today() ? (
             <View className="mt-2 flex-row items-center gap-2">
               <Feather name="info" size={13} color="#525252" />
               <Text className="flex-1 text-xs text-muted">
-                Дата в прошлом — дата сохранится как следующая, уже вычисленная для будущего периода.
+                {t("subscriptionForm.fields.renewalDate")}
               </Text>
             </View>
           ) : null}
         </View>
 
-        {/* Section: Extra */}
         <View className="rounded-2xl border border-border bg-surface p-5">
-          <Label top>Заметки</Label>
+          <FormStepHeader icon="tag" title={t("subscriptionForm.fields.isTrial")} subtitle={t("subscriptions.detail.cancelReminderDays", { days: 0 })} />
+
+          <View className="flex-row items-center justify-between py-1">
+            <View className="flex-1 pr-4">
+              <Text className="text-base text-ink">{t("subscriptionForm.fields.isTrial")}</Text>
+              <Text className="mt-0.5 text-xs text-muted">{t("subscriptions.detail.trial")}</Text>
+            </View>
+            <Switch
+              value={isTrial}
+              onValueChange={(value) => {
+                setIsTrial(value);
+                if (value && renewalDate < today()) setRenewalDate(today());
+              }}
+              trackColor={{ false: "#404040", true: "#fafafa" }}
+              thumbColor="#0a0a0a"
+            />
+          </View>
+
+          <View className="my-4 h-px bg-border" />
+
+          <Label>{t("subscriptionForm.fields.cancelReminderDays")}</Label>
+          <View className="flex-row flex-wrap gap-2">
+            {([
+              { label: t("subscriptionForm.fields.cancelReminderNone"), value: null },
+              { label: "1d", value: 1 },
+              { label: "2d", value: 2 },
+              { label: "3d", value: 3 },
+              { label: "7d", value: 7 }
+            ] as { label: string; value: number | null }[]).map((option) => {
+              const selected = cancelReminderDays === option.value;
+              return (
+                <AnimatedPressable
+                  key={String(option.value)}
+                  className={`h-10 items-center justify-center rounded-xl border px-4 ${selected ? "border-ink bg-ink" : "border-border bg-bg"}`}
+                  onPress={() => setCancelReminderDays(option.value)}
+                >
+                  <Text className={`text-sm font-semibold ${selected ? "text-bg" : "text-muted"}`}>{option.label}</Text>
+                </AnimatedPressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View className="rounded-2xl border border-border bg-surface p-5">
+          <FormStepHeader
+            icon="file-text"
+            title={t("subscriptionForm.fields.notes")}
+            subtitle={t("subscriptionForm.fields.notesPlaceholder")}
+          />
+          <Label top>{t("subscriptionForm.fields.notes")}</Label>
           <TextInput
             className="min-h-24 rounded-xl border border-border bg-bg px-4 py-4 text-base text-ink"
-            placeholder="Семейная подписка, рабочий аккаунт..."
+            placeholder={t("subscriptionForm.fields.notesPlaceholder")}
             placeholderTextColor="#525252"
             multiline
             textAlignVertical="top"
@@ -490,7 +634,7 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
           onPress={submit}
         >
           <Text className="text-center font-semibold text-bg">
-            {isSubmitting ? "Сохраняю..." : submitLabel}
+            {isSubmitting ? t("common.loading") : submitLabel}
           </Text>
         </AnimatedPressable>
       </View>

@@ -2,10 +2,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import * as api from "@/lib/api";
+import i18next from "@/lib/i18n";
+import { syncLocalRenewalNotifications } from "@/lib/notifications";
 import { seedSubscriptions } from "@/lib/seed";
 import { enqueueMutation, flushOfflineQueue, getOfflineQueueSize } from "@/lib/sync";
 import { nextRenewalDate } from "@/lib/subscriptionMath";
 import { Subscription } from "@/lib/types";
+import { useSettingsStore } from "@/store/settingsStore";
+import { useProStore } from "@/store/proStore";
+import { updateWidgetData } from "@/lib/widgetData";
+
+export const FREE_SUBSCRIPTION_LIMIT = 5;
 
 type SubscriptionState = {
   subscriptions: Subscription[];
@@ -25,6 +32,7 @@ type SubscriptionState = {
   deleteAllSubscriptions: () => Promise<void>;
   importSubscriptions: (subscriptions: Subscription[]) => Promise<{ created: number; updated: number }>;
   markPaid: (id: string, syncWithServer?: boolean) => Promise<void>;
+  archiveSubscription: (id: string) => Promise<void>;
 };
 
 export const useSubscriptionStore = create<SubscriptionState>()(
@@ -58,10 +66,11 @@ export const useSubscriptionStore = create<SubscriptionState>()(
             pendingSyncCount: await getOfflineQueueSize(),
             lastSyncedAt: new Date().toISOString()
           });
+          updateWidgetData(subscriptions).catch(() => undefined);
         } catch (error) {
           set({
             isSyncing: false,
-            syncError: error instanceof Error ? error.message : "Не удалось синхронизировать подписки"
+            syncError: error instanceof Error ? error.message : i18next.t("home.syncError")
           });
           throw error;
         }
@@ -69,6 +78,12 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       addSubscription: (subscription) =>
         set((state) => ({ subscriptions: [subscription, ...state.subscriptions] })),
       createSubscription: async (subscription) => {
+        const { isPro } = useProStore.getState();
+        const { subscriptions } = get();
+        const activeCount = subscriptions.filter((s) => !s.isArchived).length;
+        if (!isPro && activeCount >= FREE_SUBSCRIPTION_LIMIT) {
+          throw new Error("FREE_LIMIT_REACHED");
+        }
         const localId = createLocalId();
         const localSubscription: Subscription = {
           ...subscription,
@@ -85,7 +100,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         try {
           const created = await api.createSubscription({ ...subscription, id: localId });
           set((state) => ({
-            subscriptions: [created, ...state.subscriptions.filter((item) => item.id !== created.id)],
+            subscriptions: [created, ...state.subscriptions.filter((item) => item.id !== localId && item.id !== created.id)],
             isSyncing: false
           }));
         } catch (error) {
@@ -99,9 +114,11 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           set({
             isSyncing: false,
             pendingSyncCount: await getOfflineQueueSize(),
-            syncError: error instanceof Error ? `${error.message}. Сохранено локально` : "Сохранено локально"
+            syncError: error instanceof Error ? `${error.message}. ${i18next.t("common.inQueue", { count: 1 })}` : i18next.t("common.inQueue", { count: 1 })
           });
         }
+        resyncNotifications();
+        updateWidgetData(get().subscriptions).catch(() => undefined);
       },
       updateSubscription: async (id, patch) => {
         set((state) => ({
@@ -121,14 +138,16 @@ export const useSubscriptionStore = create<SubscriptionState>()(
             id: createLocalId(),
             method: "PUT",
             path: `/subscriptions/${id}`,
-            payload: api.toApiSubscription(patch),
+            payload: api.toApiSubscription(patch, { includeId: false }),
             createdAt: new Date().toISOString()
           });
           set({
             pendingSyncCount: await getOfflineQueueSize(),
-            syncError: error instanceof Error ? `${error.message}. Изменения в очереди` : "Изменения в очереди"
+            syncError: error instanceof Error ? `${error.message}. ${i18next.t("common.inQueue", { count: 1 })}` : i18next.t("common.inQueue", { count: 1 })
           });
         }
+        resyncNotifications();
+        updateWidgetData(get().subscriptions).catch(() => undefined);
       },
       deleteSubscription: async (id) => {
         set((state) => ({
@@ -147,9 +166,11 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           });
           set({
             pendingSyncCount: await getOfflineQueueSize(),
-            syncError: error instanceof Error ? `${error.message}. Удаление в очереди` : "Удаление в очереди"
+            syncError: error instanceof Error ? `${error.message}. ${i18next.t("common.inQueue", { count: 1 })}` : i18next.t("common.inQueue", { count: 1 })
           });
         }
+        resyncNotifications();
+        updateWidgetData(get().subscriptions).catch(() => undefined);
       },
       deleteAllSubscriptions: async () => {
         set({ subscriptions: [], syncError: null });
@@ -165,7 +186,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           });
           set({
             pendingSyncCount: await getOfflineQueueSize(),
-            syncError: error instanceof Error ? `${error.message}. Очистка в очереди` : "Очистка в очереди"
+            syncError: error instanceof Error ? `${error.message}. ${i18next.t("common.inQueue", { count: 1 })}` : i18next.t("common.inQueue", { count: 1 })
           });
         }
       },
@@ -199,7 +220,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
               id: createLocalId(),
               method: exists ? "PUT" : "POST",
               path: exists ? `/subscriptions/${subscription.id}` : "/subscriptions",
-              payload: api.toApiSubscription(subscription),
+              payload: api.toApiSubscription(subscription, { includeId: !exists }),
               createdAt: new Date().toISOString()
             });
           }
@@ -216,6 +237,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
               subscriptions: state.subscriptions.map((item) => (item.id === id ? renewed : item)),
               syncError: null
             }));
+            updateWidgetData(get().subscriptions).catch(() => undefined);
             return;
           } catch (error) {
             await enqueueMutation({
@@ -226,7 +248,7 @@ export const useSubscriptionStore = create<SubscriptionState>()(
             });
             set({
               pendingSyncCount: await getOfflineQueueSize(),
-              syncError: error instanceof Error ? error.message : "Оплата отмечена локально"
+              syncError: error instanceof Error ? error.message : i18next.t("common.inQueue", { count: 1 })
             });
           }
         }
@@ -251,6 +273,35 @@ export const useSubscriptionStore = create<SubscriptionState>()(
               : item
           )
         }));
+        updateWidgetData(get().subscriptions).catch(() => undefined);
+      },
+      archiveSubscription: async (id) => {
+        set((state) => ({
+          subscriptions: state.subscriptions.map((item) =>
+            item.id === id ? { ...item, isActive: false, isArchived: true } : item
+          )
+        }));
+        try {
+          const updated = await api.updateSubscription(id, { isActive: false, isArchived: true });
+          set((state) => ({
+            subscriptions: state.subscriptions.map((item) => (item.id === id ? updated : item)),
+            syncError: null
+          }));
+        } catch (error) {
+          await enqueueMutation({
+            id: createLocalId(),
+            method: "PUT",
+            path: `/subscriptions/${id}`,
+            payload: api.toApiSubscription({ isActive: false, isArchived: true }, { includeId: false }),
+            createdAt: new Date().toISOString()
+          });
+          set({
+            pendingSyncCount: await getOfflineQueueSize(),
+            syncError: error instanceof Error ? `${error.message}. ${i18next.t("common.inQueue", { count: 1 })}` : i18next.t("common.inQueue", { count: 1 })
+          });
+        }
+        resyncNotifications();
+        updateWidgetData(get().subscriptions).catch(() => undefined);
       }
     }),
     {
@@ -266,4 +317,15 @@ function createLocalId(): string {
     const resolved = char === "x" ? value : (value & 0x3) | 0x8;
     return resolved.toString(16);
   });
+}
+
+async function resyncNotifications(): Promise<void> {
+  const { subscriptions } = useSubscriptionStore.getState();
+  const settings = useSettingsStore.getState();
+  await syncLocalRenewalNotifications(subscriptions, {
+    notifyThreeDays: settings.notifyThreeDays,
+    notifyOneDay: settings.notifyOneDay,
+    notifySameDay: settings.notifySameDay,
+    notificationTime: settings.notificationTime
+  }).catch(() => undefined);
 }

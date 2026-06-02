@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import i18next from "@/lib/i18n";
 
 export type CurrencyRates = {
   EUR: number; // 1 EUR = X CZK
@@ -55,7 +56,7 @@ export const useCurrencyStore = create<CurrencyState>()(
             fetchError: null
           });
         } catch {
-          set({ isFetching: false, fetchError: "Не удалось загрузить курсы" });
+          set({ isFetching: false, fetchError: i18next.t("common.error") });
         }
       },
 

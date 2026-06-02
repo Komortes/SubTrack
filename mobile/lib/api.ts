@@ -1,8 +1,10 @@
+import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { PaymentRecord, Subscription } from "./types";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api";
+const API_URL = normalizeApiUrl(process.env.EXPO_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api");
 const TOKEN_KEY = "subtrack_token";
+const REQUEST_TIMEOUT_MS = 12000;
 
 type ApiUser = {
   id: number;
@@ -78,6 +80,9 @@ type ApiSubscription = {
   color?: string | null;
   notes?: string | null;
   is_active: boolean;
+  is_trial: boolean;
+  is_archived: boolean;
+  cancel_reminder_days?: number | null;
   created_at: string;
   payment_records?: ApiPaymentRecord[];
 };
@@ -103,26 +108,94 @@ export class ApiError extends Error {
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await SecureStore.getItemAsync(TOKEN_KEY);
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers
+
+  let lastNetworkError: unknown;
+  for (const baseUrl of getApiBaseUrls()) {
+    try {
+      const response = await fetchWithTimeout(`${baseUrl}${path}`, {
+        ...options,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...options.headers
+        }
+      });
+
+      if (!response.ok) {
+        const message = await readErrorMessage(response);
+        throw new ApiError(message, response.status);
+      }
+
+      if (response.status === 204) {
+        return undefined as T;
+      }
+
+      return response.json() as Promise<T>;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+
+      lastNetworkError = error;
     }
-  });
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response);
-    throw new ApiError(message, response.status);
   }
 
-  if (response.status === 204) {
-    return undefined as T;
+  const detail = lastNetworkError instanceof Error ? lastNetworkError.message : "network request failed";
+  throw new ApiError(
+    `Could not connect to server (${detail}). Check EXPO_PUBLIC_API_URL and start backend with --host=0.0.0.0.`,
+    0
+  );
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function getApiBaseUrls(): string[] {
+  const urls = [API_URL];
+  const expoHost = Constants.expoConfig?.hostUri?.split(":")[0];
+
+  if (isLocalhostUrl(API_URL)) {
+    if (expoHost) urls.push(`http://${expoHost}:8000/api`);
+    urls.push("http://10.0.2.2:8000/api");
+  } else if (expoHost) {
+    // When a hardcoded LAN IP is configured, also try the Expo Metro host with
+    // the same port and path — this auto-recovers when DHCP changes the IP.
+    const port = extractPort(API_URL) ?? "8000";
+    const apiPath = extractApiPath(API_URL) ?? "/api";
+    urls.push(`http://${expoHost}:${port}${apiPath}`);
   }
 
-  return response.json() as Promise<T>;
+  return Array.from(new Set(urls.map(normalizeApiUrl)));
+}
+
+function normalizeApiUrl(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
+function isLocalhostUrl(url: string): boolean {
+  return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/i.test(url);
+}
+
+function extractPort(url: string): string | null {
+  const match = url.match(/^https?:\/\/[^/:]+:(\d+)/);
+  return match?.[1] ?? null;
+}
+
+function extractApiPath(url: string): string | null {
+  const match = url.match(/^https?:\/\/[^/]+(\/.*)/);
+  return match?.[1] ?? null;
 }
 
 export async function login(email: string, password: string): Promise<AuthResponse> {
@@ -217,7 +290,7 @@ export async function createSubscription(subscription: Omit<Subscription, "creat
 export async function updateSubscription(id: string, patch: Partial<Omit<Subscription, "id" | "createdAt">>): Promise<Subscription> {
   const updated = await apiRequest<ApiSubscription>(`/subscriptions/${id}`, {
     method: "PUT",
-    body: JSON.stringify(toApiSubscription(patch))
+    body: JSON.stringify(toApiSubscription(patch, { includeId: false }))
   });
 
   return fromApiSubscription(updated);
@@ -267,6 +340,9 @@ function fromApiSubscription(subscription: ApiSubscription): Subscription {
     color: subscription.color ?? "#0F766E",
     notes: subscription.notes ?? undefined,
     isActive: subscription.is_active,
+    isTrial: subscription.is_trial ?? false,
+    isArchived: subscription.is_archived ?? false,
+    cancelReminderDays: subscription.cancel_reminder_days ?? null,
     createdAt: subscription.created_at,
     paymentHistory: subscription.payment_records?.map(fromApiPaymentRecord)
   };
@@ -282,9 +358,10 @@ function fromApiPaymentRecord(record: ApiPaymentRecord): PaymentRecord {
   };
 }
 
-export function toApiSubscription(subscription: Partial<SubscriptionPayload>) {
+export function toApiSubscription(subscription: Partial<SubscriptionPayload>, options: { includeId?: boolean } = {}) {
+  const includeId = options.includeId ?? true;
   return {
-    id: "id" in subscription ? subscription.id : undefined,
+    id: includeId && "id" in subscription && isUuid(subscription.id) ? subscription.id : undefined,
     name: subscription.name,
     amount: subscription.amount,
     currency: subscription.currency,
@@ -295,8 +372,15 @@ export function toApiSubscription(subscription: Partial<SubscriptionPayload>) {
     icon_slug: subscription.iconSlug,
     color: subscription.color,
     notes: subscription.notes,
-    is_active: subscription.isActive
+    is_active: subscription.isActive,
+    is_trial: subscription.isTrial,
+    is_archived: subscription.isArchived,
+    cancel_reminder_days: subscription.cancelReminderDays ?? null
   };
+}
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function fromApiSettings(settings: ApiUserSettings): UserSettings {

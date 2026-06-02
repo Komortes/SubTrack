@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, router } from "expo-router";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { FadeInView } from "@/components/FadeInView";
-import { InsightCard } from "@/components/InsightCard";
 import { PaymentCalendar } from "@/components/PaymentCalendar";
 import { ScreenTransition } from "@/components/ScreenTransition";
 import { SubscriptionCard } from "@/components/SubscriptionCard";
@@ -18,6 +18,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useSubscriptionStore } from "@/store/subscriptionStore";
 
 export default function HomeScreen() {
+  const { t } = useTranslation();
   const { monthlyTotal, yearlyTotal, monthlyHistory } = useAnalytics();
   const { activeSubscriptions, recentlyAdded } = useSubscriptions();
   const isOfflineMode = useAuthStore((state) => state.isOfflineMode);
@@ -72,14 +73,14 @@ export default function HomeScreen() {
       >
         <View>
           <RefreshIndicator visible={isRefreshing} />
-          <Text className="text-3xl font-bold tracking-tight text-ink">SubTrack</Text>
-          <Text className="mt-1 text-subtle">Обзор подписок и списаний</Text>
+          <Text className="text-3xl font-bold tracking-tight text-ink">{t("home.title")}</Text>
+          <Text className="mt-1 text-subtle">{t("home.upcomingRenewals")}</Text>
           {pendingSyncCount > 0 ? (
             <View className="mt-3 flex-row items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3">
               <View className="flex-1 pr-3">
-                <Text className="text-sm font-semibold text-ink">Ожидает синхронизации: {pendingSyncCount}</Text>
+                <Text className="text-sm font-semibold text-ink">{t("common.inQueue", { count: pendingSyncCount })}</Text>
                 <Text className="mt-0.5 text-xs text-muted">
-                  {isOfflineMode ? "Войди в аккаунт, чтобы отправить очередь." : "Можно повторить отправку вручную."}
+                  {isOfflineMode ? t("settings.rows.offlineModeSubtitle") : t("common.syncing")}
                 </Text>
               </View>
               {!isOfflineMode ? (
@@ -98,7 +99,6 @@ export default function HomeScreen() {
           {syncError ? <Text className="mt-2 text-sm font-medium text-danger">{syncError}</Text> : null}
         </View>
         <SummaryCard monthlyTotal={monthlyTotal} yearlyTotal={yearlyTotal} trend={trend} />
-        <InsightCard subscriptions={activeSubscriptions} />
         <PaymentCalendar subscriptions={activeSubscriptions} />
         {today.length > 0 ? (
           <View className="rounded-2xl border border-danger/30 bg-danger/10 p-4">
@@ -106,25 +106,25 @@ export default function HomeScreen() {
               <View key={item.id} className="flex-row items-center gap-3">
                 <View className="h-2 w-2 rounded-full bg-danger" />
                 <View className="flex-1">
-                  <Text className="text-xs font-semibold uppercase tracking-widest text-danger">Списание сегодня</Text>
+                  <Text className="text-xs font-semibold uppercase tracking-widest text-danger">{t("home.todayRenewals")}</Text>
                   <Text className="mt-0.5 text-sm text-subtle">{item.name} · {item.amount} {item.currency}</Text>
                 </View>
                 <AnimatedPressable className="rounded-xl border border-border bg-surface px-3 py-2" onPress={() => { haptic.success(); markPaid(item.id); }}>
-                  <Text className="text-xs font-semibold uppercase tracking-widest text-ink">Оплачено</Text>
+                  <Text className="text-xs font-semibold uppercase tracking-widest text-ink">{t("subscriptions.detail.markPaid")}</Text>
                 </AnimatedPressable>
               </View>
             ))}
           </View>
         ) : null}
         <View>
-          <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Ближайшие списания</Text>
+          <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">{t("home.upcomingRenewals")}</Text>
           <UpcomingList
             subscriptions={activeSubscriptions}
             onPress={(id) => router.push(`/(app)/(tabs)/subscriptions/${id}`)}
           />
         </View>
         <View>
-          <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Недавно добавленные</Text>
+          <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">{t("home.recentlyAdded")}</Text>
           <View className="gap-3">
             {recentlyAdded.map((item, index) => (
               <FadeInView key={item.id} index={index}>

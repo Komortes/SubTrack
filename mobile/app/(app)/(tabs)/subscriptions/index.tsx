@@ -1,45 +1,31 @@
 import { Feather } from "@expo/vector-icons";
-import { Link, router } from "expo-router";
+import { router } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, RefreshControl, SectionList, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, RefreshControl, SectionList, ScrollView, Text, TextInput, View } from "react-native";
 import Animated, {
   interpolate,
   interpolateColor,
   useAnimatedStyle,
   type SharedValue,
 } from "react-native-reanimated";
-import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
+import ReanimatedSwipeable, { SwipeDirection, type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
+import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { EmptyState } from "@/components/EmptyState";
 import { RefreshIndicator } from "@/components/RefreshIndicator";
 import { ScreenTransition } from "@/components/ScreenTransition";
 import { SubscriptionCard } from "@/components/SubscriptionCard";
-import { categoryLabels } from "@/lib/catalog";
 import { haptic } from "@/lib/haptics";
 import { daysUntil, normalizeMonthlyAmount } from "@/lib/subscriptionMath";
 import { Subscription, SubscriptionCategory } from "@/lib/types";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
+import { useProStatus } from "@/hooks/useProStatus";
 import { useAuthStore } from "@/store/authStore";
-import { useSubscriptionStore } from "@/store/subscriptionStore";
+import { useSubscriptionStore, FREE_SUBSCRIPTION_LIMIT } from "@/store/subscriptionStore";
+import i18next from "@/lib/i18n";
 
-const filters: { label: string; value: "all" | "active" | "paused" | SubscriptionCategory }[] = [
-  { label: "Все", value: "all" },
-  { label: "Активные", value: "active" },
-  { label: "Пауза", value: "paused" },
-  { label: "Развлечения", value: "entertainment" },
-  { label: "Работа", value: "work" },
-  { label: "Облако", value: "cloud" },
-  { label: "Здоровье", value: "health" },
-  { label: "Другое", value: "other" }
-];
-
-const sortOptions = [
-  { label: "По дате", value: "renewalDate" },
-  { label: "По сумме", value: "amount" },
-  { label: "По названию", value: "name" },
-  { label: "По дате добавления", value: "createdAt" }
-] as const;
-
+type SortValue = "renewalDate" | "amount" | "name" | "createdAt";
+type FilterValue = "all" | "active" | "paused" | SubscriptionCategory;
 type GroupMode = "none" | "category" | "date";
 
 const SWIPE_THRESHOLD = 0.42;
@@ -47,11 +33,9 @@ const SWIPE_THRESHOLD = 0.42;
 function SwipeLeftAction({
   progress,
   isActive,
-  onPress,
 }: {
   progress: SharedValue<number>;
   isActive: boolean;
-  onPress: () => void;
 }) {
   const bgStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
@@ -67,17 +51,15 @@ function SwipeLeftAction({
   return (
     <View style={{ marginRight: 10, width: 72, borderRadius: 16, overflow: "hidden" }}>
       <Animated.View style={[{ flex: 1, alignItems: "center", justifyContent: "center" }, bgStyle]}>
-        <Pressable style={{ flex: 1, width: "100%", alignItems: "center", justifyContent: "center" }} onPress={onPress}>
-          <Animated.View style={iconStyle}>
-            <Feather name={isActive ? "pause" : "play"} size={20} color="#fafafa" />
-          </Animated.View>
-        </Pressable>
+        <Animated.View style={[iconStyle, { flex: 1, alignItems: "center", justifyContent: "center" }]}>
+          <Feather name={isActive ? "pause" : "play"} size={20} color="#fafafa" />
+        </Animated.View>
       </Animated.View>
     </View>
   );
 }
 
-function SwipeRightAction({ progress, onPress }: { progress: SharedValue<number>; onPress: () => void }) {
+function SwipeRightAction({ progress }: { progress: SharedValue<number> }) {
   const bgStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
       progress.value,
@@ -92,11 +74,9 @@ function SwipeRightAction({ progress, onPress }: { progress: SharedValue<number>
   return (
     <View style={{ marginLeft: 10, width: 72, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(239,68,68,0.2)" }}>
       <Animated.View style={[{ flex: 1, alignItems: "center", justifyContent: "center" }, bgStyle]}>
-        <Pressable style={{ flex: 1, width: "100%", alignItems: "center", justifyContent: "center" }} onPress={onPress}>
-          <Animated.View style={iconStyle}>
-            <Feather name="trash-2" size={20} color="#ef4444" />
-          </Animated.View>
-        </Pressable>
+        <Animated.View style={[iconStyle, { flex: 1, alignItems: "center", justifyContent: "center" }]}>
+          <Feather name="trash-2" size={20} color="#ef4444" />
+        </Animated.View>
       </Animated.View>
     </View>
   );
@@ -127,11 +107,19 @@ function SubscriptionRow({
       overshootRight={false}
       onSwipeableWillOpen={() => { isOpenRef.current = true; }}
       onSwipeableClose={() => { isOpenRef.current = false; }}
-      renderLeftActions={(progress, _, swipeable) => (
-        <SwipeLeftAction progress={progress} isActive={item.isActive} onPress={() => onToggle(item, swipeable)} />
+      onSwipeableOpen={(direction) => {
+        if (direction === SwipeDirection.RIGHT) {
+          swipeableRef.current?.close();
+          onToggle(item, swipeableRef.current!);
+        } else {
+          onDelete(item, swipeableRef.current!);
+        }
+      }}
+      renderLeftActions={(progress) => (
+        <SwipeLeftAction progress={progress} isActive={item.isActive} />
       )}
-      renderRightActions={(progress, _, swipeable) => (
-        <SwipeRightAction progress={progress} onPress={() => onDelete(item, swipeable)} />
+      renderRightActions={(progress) => (
+        <SwipeRightAction progress={progress} />
       )}
     >
       <SubscriptionCard
@@ -157,7 +145,7 @@ function groupByCategory(items: Subscription[]): { title: string; data: Subscrip
     map.get(key)!.push(item);
   }
   return Array.from(map.entries())
-    .map(([key, data]) => ({ title: categoryLabels[key as SubscriptionCategory] ?? key, data }))
+    .map(([key, data]) => ({ title: i18next.t(`categories.${key}`, key), data }))
     .sort((a, b) => b.data.length - a.data.length);
 }
 
@@ -172,24 +160,58 @@ function groupByDate(items: Subscription[]): { title: string; data: Subscription
     else later.push(item);
   }
   return [
-    { title: "На этой неделе", data: thisWeek },
-    { title: "В этом месяце", data: thisMonth },
-    { title: "Позже", data: later },
+    { title: i18next.t("subscriptions.groups.date"), data: thisWeek },
+    { title: i18next.t("subscriptions.groups.date"), data: thisMonth },
+    { title: i18next.t("subscriptions.groups.none"), data: later },
   ].filter((s) => s.data.length > 0);
 }
 
 export default function SubscriptionsScreen() {
-  const [filter, setFilter] = useState<(typeof filters)[number]["value"]>("all");
-  const [sort, setSort] = useState<(typeof sortOptions)[number]["value"]>("renewalDate");
+  const { t } = useTranslation();
+
+  const filters: { label: string; value: FilterValue }[] = [
+    { label: t("subscriptions.filters.all"), value: "all" },
+    { label: t("subscriptions.filters.active"), value: "active" },
+    { label: t("subscriptions.filters.paused"), value: "paused" },
+    { label: t("categories.entertainment"), value: "entertainment" },
+    { label: t("categories.work"), value: "work" },
+    { label: t("categories.cloud"), value: "cloud" },
+    { label: t("categories.health"), value: "health" },
+    { label: t("categories.other"), value: "other" },
+  ];
+
+  const sortOptions: { label: string; value: SortValue }[] = [
+    { label: t("subscriptions.sort.renewalDate"), value: "renewalDate" },
+    { label: t("subscriptions.sort.amount"), value: "amount" },
+    { label: t("subscriptions.sort.name"), value: "name" },
+    { label: t("subscriptions.sort.createdAt"), value: "createdAt" },
+  ];
+
+  const [filter, setFilter] = useState<FilterValue>("all");
+  const [sort, setSort] = useState<SortValue>("renewalDate");
   const [query, setQuery] = useState("");
   const [compact, setCompact] = useState(false);
   const [groupMode, setGroupMode] = useState<GroupMode>("none");
-  const { subscriptions } = useSubscriptions();
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const { subscriptions: activeSubscriptions, archivedSubscriptions } = useSubscriptions();
+  const subscriptions = showArchived ? archivedSubscriptions : activeSubscriptions;
   const isOfflineMode = useAuthStore((state) => state.isOfflineMode);
   const isSyncing = useSubscriptionStore((state) => state.isSyncing);
   const syncFromServer = useSubscriptionStore((state) => state.syncFromServer);
   const updateSubscription = useSubscriptionStore((state) => state.updateSubscription);
   const deleteSubscription = useSubscriptionStore((state) => state.deleteSubscription);
+  const isPro = useProStatus();
+  const allSubscriptions = useSubscriptionStore((s) => s.subscriptions);
+  const nonArchivedCount = allSubscriptions.filter((s) => !s.isArchived).length;
+
+  function handleAddPress() {
+    if (!isPro && nonArchivedCount >= FREE_SUBSCRIPTION_LIMIT) {
+      router.push("/(app)/paywall");
+      return;
+    }
+    router.push("/(app)/(tabs)/subscriptions/new");
+  }
 
   const filtered = useMemo(() => {
     const result = subscriptions.filter((item) => {
@@ -215,24 +237,29 @@ export default function SubscriptionsScreen() {
     return [{ title: "", data: filtered }];
   }, [filtered, groupMode]);
 
-  const activeSortLabel = sortOptions.find((i) => i.value === sort)?.label ?? "По дате";
+  const activeSortLabel = sortOptions.find((i) => i.value === sort)?.label ?? t("subscriptions.sort.renewalDate");
+  const activeCount = subscriptions.filter((item) => item.isActive).length;
+  const pausedCount = subscriptions.length - activeCount;
+  const dueSoonCount = subscriptions.filter((item) => { const d = daysUntil(item.renewalDate); return item.isActive && d >= 0 && d <= 7; }).length;
+  const categoryFilters = filters.filter((item) => !["all", "active", "paused"].includes(String(item.value)));
+  const primaryFilters = filters.filter((item) => ["all", "active", "paused"].includes(String(item.value)));
 
   function chooseSort() {
-    Alert.alert("Сортировка", "Выбери порядок списка", [
+    Alert.alert(t("subscriptions.sort.renewalDate"), undefined, [
       ...sortOptions.map((item) => ({
         text: sort === item.value ? `✓ ${item.label}` : item.label,
         onPress: () => setSort(item.value)
       })),
-      { text: "Отмена", style: "cancel" as const }
+      { text: t("common.cancel"), style: "cancel" as const }
     ]);
   }
 
   function chooseGroup() {
-    Alert.alert("Группировка", undefined, [
-      { text: groupMode === "none" ? "✓ Без группировки" : "Без группировки", onPress: () => setGroupMode("none") },
-      { text: groupMode === "category" ? "✓ По категории" : "По категории", onPress: () => setGroupMode("category") },
-      { text: groupMode === "date" ? "✓ По дате" : "По дате", onPress: () => setGroupMode("date") },
-      { text: "Отмена", style: "cancel" as const }
+    Alert.alert(t("subscriptions.groups.category"), undefined, [
+      { text: groupMode === "none" ? `✓ ${t("subscriptions.groups.none")}` : t("subscriptions.groups.none"), onPress: () => setGroupMode("none") },
+      { text: groupMode === "category" ? `✓ ${t("subscriptions.groups.category")}` : t("subscriptions.groups.category"), onPress: () => setGroupMode("category") },
+      { text: groupMode === "date" ? `✓ ${t("subscriptions.groups.date")}` : t("subscriptions.groups.date"), onPress: () => setGroupMode("date") },
+      { text: t("common.cancel"), style: "cancel" as const }
     ]);
   }
 
@@ -242,10 +269,10 @@ export default function SubscriptionsScreen() {
   }, [isOfflineMode, syncFromServer]);
 
   function confirmDelete(subscription: Subscription, swipeable: SwipeableMethods) {
-    Alert.alert("Удалить подписку?", `${subscription.name} будет удалена из списка.`, [
-      { text: "Отмена", style: "cancel", onPress: () => swipeable.close() },
+    Alert.alert(t("subscriptions.detail.deleteConfirmTitle"), t("subscriptions.detail.deleteConfirmMessage", { name: subscription.name }), [
+      { text: t("common.cancel"), style: "cancel", onPress: () => swipeable.close() },
       {
-        text: "Удалить",
+        text: t("common.delete"),
         style: "destructive",
         onPress: () => {
           haptic.warning();
@@ -262,8 +289,7 @@ export default function SubscriptionsScreen() {
         item={item}
         compact={compact}
         onDelete={confirmDelete}
-        onToggle={(sub, swipeable) => {
-          swipeable.close();
+        onToggle={(sub) => {
           updateSubscription(sub.id, { isActive: !sub.isActive }).catch(() => undefined);
         }}
         onPress={() => router.push(`/(app)/(tabs)/subscriptions/${item.id}`)}
@@ -273,12 +299,20 @@ export default function SubscriptionsScreen() {
 
   const header = (
     <View className="mb-5">
-      <View className="flex-row items-center justify-between">
+      <View className="flex-row items-start justify-between gap-4">
         <View>
-          <Text className="text-3xl font-bold tracking-tight text-ink">Подписки</Text>
-          <Text className="mt-1 text-sm text-subtle">{filtered.length} из {subscriptions.length}</Text>
+          <Text className="text-3xl font-bold tracking-tight text-ink">{t("subscriptions.title")}</Text>
+          <Text className="mt-1 text-sm text-subtle">
+            {showArchived ? `${t("subscriptions.detail.archived")}: ${filtered.length}` : `${filtered.length} / ${subscriptions.length}`}
+          </Text>
         </View>
         <View className="flex-row items-center gap-2">
+          <AnimatedPressable
+            className={`h-9 w-9 items-center justify-center rounded-xl border border-border ${showArchived ? "bg-ink" : "bg-surface"}`}
+            onPress={() => setShowArchived((v) => !v)}
+          >
+            <Feather name="archive" size={15} color={showArchived ? "#fafafa" : "#a3a3a3"} />
+          </AnimatedPressable>
           <AnimatedPressable
             className="h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface"
             onPress={() => setCompact((v) => !v)}
@@ -287,17 +321,25 @@ export default function SubscriptionsScreen() {
           </AnimatedPressable>
           <AnimatedPressable
             className="h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface"
-            onPress={chooseGroup}
+            onPress={() => setShowAdvancedFilters((value) => !value)}
           >
-            <Feather name="layers" size={15} color={groupMode !== "none" ? "#fafafa" : "#a3a3a3"} />
+            <Feather name="sliders" size={15} color={showAdvancedFilters || filter !== "all" || groupMode !== "none" ? "#fafafa" : "#a3a3a3"} />
           </AnimatedPressable>
-          <AnimatedPressable
-            className="flex-row items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2"
-            onPress={chooseSort}
-          >
-            <Feather name="sliders" size={13} color="#a3a3a3" />
-            <Text className="text-xs font-medium text-subtle">{activeSortLabel}</Text>
-          </AnimatedPressable>
+        </View>
+      </View>
+
+      <View className="mt-4 flex-row gap-2">
+        <View className="flex-1 rounded-2xl border border-border bg-surface p-3">
+          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("subscriptions.filters.active")}</Text>
+          <Text className="mt-1 text-2xl font-bold text-ink">{activeCount}</Text>
+        </View>
+        <View className="flex-1 rounded-2xl border border-border bg-surface p-3">
+          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("subscriptions.filters.paused")}</Text>
+          <Text className="mt-1 text-2xl font-bold text-ink">{pausedCount}</Text>
+        </View>
+        <View className="flex-1 rounded-2xl border border-border bg-surface p-3">
+          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">7d</Text>
+          <Text className={`mt-1 text-2xl font-bold ${dueSoonCount > 0 ? "text-danger" : "text-ink"}`}>{dueSoonCount}</Text>
         </View>
       </View>
 
@@ -306,7 +348,7 @@ export default function SubscriptionsScreen() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Поиск по названию или заметкам"
+          placeholder={`${t("subscriptions.title")}...`}
           placeholderTextColor="#525252"
           className="flex-1 text-base text-ink"
           autoCapitalize="none"
@@ -320,24 +362,74 @@ export default function SubscriptionsScreen() {
         ) : null}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-3">
-        <View className="flex-row gap-2">
-          {filters.map((item) => (
+      <View className="mt-3 flex-row rounded-2xl border border-border bg-surface p-1">
+        {primaryFilters.map((item) => (
+          <AnimatedPressable
+            key={item.value}
+            className={`h-10 flex-1 items-center justify-center rounded-xl ${filter === item.value ? "bg-ink" : ""}`}
+            onPress={() => setFilter(item.value)}
+          >
+            <Text className={`text-sm font-semibold ${filter === item.value ? "text-bg" : "text-muted"}`}>
+              {item.label}
+            </Text>
+          </AnimatedPressable>
+        ))}
+      </View>
+
+      {showAdvancedFilters ? (
+        <View className="mt-3 gap-3 rounded-2xl border border-border bg-surface p-3">
+          <View className="flex-row gap-2">
             <AnimatedPressable
-              key={item.value}
-              className={`rounded-full border px-3 py-1.5 ${filter === item.value ? "border-ink bg-ink" : "border-border bg-surface"}`}
-              onPress={() => setFilter(item.value)}
+              className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-border bg-bg px-3 py-2.5"
+              onPress={chooseSort}
             >
-              <Text className={`text-xs font-medium ${filter === item.value ? "text-bg" : "text-muted"}`}>
-                {item.label}
+              <Feather name="sliders" size={14} color="#a3a3a3" />
+              <Text className="text-xs font-semibold text-subtle">{activeSortLabel}</Text>
+            </AnimatedPressable>
+            <AnimatedPressable
+              className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-border bg-bg px-3 py-2.5"
+              onPress={chooseGroup}
+            >
+              <Feather name="layers" size={14} color={groupMode !== "none" ? "#fafafa" : "#a3a3a3"} />
+              <Text className="text-xs font-semibold text-subtle">
+                {groupMode === "category" ? t("subscriptions.groups.category") : groupMode === "date" ? t("subscriptions.groups.date") : t("subscriptions.groups.none")}
               </Text>
             </AnimatedPressable>
-          ))}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View className="flex-row gap-2">
+              {categoryFilters.map((item) => (
+                <AnimatedPressable
+                  key={item.value}
+                  className={`rounded-full border px-3 py-1.5 ${filter === item.value ? "border-ink bg-ink" : "border-border bg-bg"}`}
+                  onPress={() => setFilter(item.value)}
+                >
+                  <Text className={`text-xs font-medium ${filter === item.value ? "text-bg" : "text-muted"}`}>
+                    {item.label}
+                  </Text>
+                </AnimatedPressable>
+              ))}
+            </View>
+          </ScrollView>
         </View>
-      </ScrollView>
+      ) : null}
+
+      {filter !== "all" || groupMode !== "none" ? (
+        <View className="mt-3 flex-row items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3">
+          <Text className="text-xs font-semibold text-muted">{t("stats.categoryFilter")}</Text>
+          <AnimatedPressable
+            onPress={() => {
+              setFilter("all");
+              setGroupMode("none");
+            }}
+          >
+            <Text className="text-xs font-bold uppercase tracking-widest text-ink">{t("common.reset")}</Text>
+          </AnimatedPressable>
+        </View>
+      ) : null}
 
       {isOfflineMode ? (
-        <Text className="mt-3 text-xs font-medium text-muted">Офлайн: обновление с сервера недоступно.</Text>
+        <Text className="mt-3 text-xs font-medium text-muted">{t("common.offline")}</Text>
       ) : null}
 
       <RefreshIndicator visible={isSyncing} />
@@ -347,15 +439,15 @@ export default function SubscriptionsScreen() {
   const emptyComponent = (
     <EmptyState
       icon={subscriptions.length === 0 ? "credit-card" : "search"}
-      title={subscriptions.length === 0 ? "Нет подписок" : "Ничего не найдено"}
+      title={subscriptions.length === 0 ? t("home.noSubscriptions") : t("home.noSubscriptions")}
       subtitle={
         subscriptions.length === 0
-          ? "Добавь первую подписку через кнопку + внизу экрана."
-          : "Попробуй изменить поиск, фильтр или сортировку."
+          ? t("home.noSubscriptionsHint")
+          : t("home.noSubscriptionsHint")
       }
       action={
         subscriptions.length === 0
-          ? { label: "Добавить подписку", onPress: () => router.push("/(app)/(tabs)/subscriptions/new") }
+          ? { label: t("home.addFirst"), onPress: () => router.push("/(app)/(tabs)/subscriptions/new") }
           : undefined
       }
     />
@@ -392,14 +484,13 @@ export default function SubscriptionsScreen() {
         ListEmptyComponent={emptyComponent}
       />
 
-      <Link href="/(app)/(tabs)/subscriptions/new" asChild>
-        <AnimatedPressable
-          className="absolute bottom-28 right-5 h-16 w-16 items-center justify-center rounded-full bg-accent"
-          scaleTarget={0.92}
-        >
-          <Text className="text-3xl font-light text-bg">+</Text>
-        </AnimatedPressable>
-      </Link>
+      <AnimatedPressable
+        className="absolute bottom-28 right-5 h-16 w-16 items-center justify-center rounded-full bg-accent"
+        scaleTarget={0.92}
+        onPress={handleAddPress}
+      >
+        <Text className="text-3xl font-light text-bg">+</Text>
+      </AnimatedPressable>
     </ScreenTransition>
   );
 }

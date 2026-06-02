@@ -1,38 +1,69 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import { Feather } from "@expo/vector-icons";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { FadeInView } from "@/components/FadeInView";
 import { ScreenTransition } from "@/components/ScreenTransition";
 import { CategoryPie } from "@/components/CategoryPie";
 import { MonthlyChart } from "@/components/MonthlyChart";
 import { ServiceIcon } from "@/components/ServiceIcon";
-import { categoryLabels } from "@/lib/catalog";
 import { formatMoney, normalizeMonthlyAmount } from "@/lib/subscriptionMath";
 import { useAnalytics } from "@/hooks/useAnalytics";
+import { useProStatus } from "@/hooks/useProStatus";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
 import { useSettingsStore } from "@/store/settingsStore";
 
-const periods = ["Месяц", "Квартал", "Год"] as const;
+const periodKeys = ["month", "quarter", "year"] as const;
+type PeriodKey = (typeof periodKeys)[number];
+
+function MetricPill({ label, value, suffix }: { label: string; value: string | number; suffix?: string }) {
+  return (
+    <View className="flex-1 border-l border-border pl-3">
+      <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{label}</Text>
+      <View className="mt-1 flex-row items-end gap-1">
+        <Text className="text-xl font-bold text-ink">{value}</Text>
+        {suffix ? <Text className="mb-0.5 text-xs text-muted">{suffix}</Text> : null}
+      </View>
+    </View>
+  );
+}
 
 export default function StatsScreen() {
-  const [period, setPeriod] = useState<(typeof periods)[number]>("Месяц");
+  const { t } = useTranslation();
+  const [period, setPeriod] = useState<PeriodKey>("month");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { monthlyTotal, yearlyTotal, activeCount, byCategory, monthlyHistory, analyticsError, topSubscriptions } = useAnalytics();
   const { activeSubscriptions } = useSubscriptions();
   const primaryCurrency = useSettingsStore((state) => state.primaryCurrency);
+  const isPro = useProStatus();
 
-  const periodMultiplier = period === "Месяц" ? 1 : period === "Квартал" ? 3 : 12;
-  const periodTotal = period === "Год" ? yearlyTotal : monthlyTotal * periodMultiplier;
+  if (!isPro) {
+    return (
+      <View className="flex-1 items-center justify-center bg-bg px-8">
+        <Feather name="lock" size={40} color="#3a3a3a" />
+        <Text className="mt-4 text-center text-xl font-bold text-ink">{t("stats.title")}</Text>
+        <Text className="mt-2 text-center text-muted">{t("stats.proLocked")}</Text>
+        <Pressable
+          onPress={() => router.push("/(app)/paywall")}
+          className="mt-6 rounded-2xl bg-ink px-8 py-4"
+        >
+          <Text className="font-semibold text-bg">{t("proGate.upgradeButton")}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const periodMultiplier = period === "month" ? 1 : period === "quarter" ? 3 : 12;
+  const periodTotal = period === "year" ? yearlyTotal : monthlyTotal * periodMultiplier;
   const averagePerSub = activeCount > 0 ? periodTotal / activeCount : 0;
-  const forecastDelta = periodTotal > 0 ? ((monthlyTotal / (periodTotal / periodMultiplier)) - 1) * 100 : 0;
-
-  const categoryBreakdownItems = Object.entries(byCategory)
-    .map(([key, amount]) => ({ key, label: categoryLabels[key as keyof typeof categoryLabels] ?? key, amount }))
-    .filter((item) => item.amount > 0)
-    .sort((a, b) => b.amount - a.amount);
-
-  const maxCategoryAmount = categoryBreakdownItems.reduce((max, item) => Math.max(max, item.amount), 0);
+  const topSubscription = topSubscriptions[0];
+  const topMonthly = topSubscription ? normalizeMonthlyAmount(topSubscription) : 0;
+  const topPeriodAmount = topMonthly * periodMultiplier;
+  const topShare = periodTotal > 0 && topSubscription ? Math.round((topPeriodAmount / periodTotal) * 100) : 0;
+  const formattedPeriodTotal = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 0 }).format(periodTotal);
+  const formattedAverage = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 0 }).format(averagePerSub);
   const selectedCategorySubscriptions = selectedCategory
     ? activeSubscriptions
         .filter((subscription) => subscription.category === selectedCategory)
@@ -44,88 +75,44 @@ export default function StatsScreen() {
       <ScrollView className="flex-1 bg-bg" contentContainerClassName="gap-5 px-5 pb-36 pt-16">
 
         <View>
-          <Text className="text-3xl font-bold tracking-tight text-ink">Статистика</Text>
-          <Text className="mt-1 text-subtle">Расходы и аналитика по подпискам</Text>
+          <Text className="text-3xl font-bold tracking-tight text-ink">{t("stats.title")}</Text>
+          <Text className="mt-1 text-subtle">{t("stats.subtitle")}</Text>
         </View>
 
-        {/* Period tabs */}
-        <View className="flex-row rounded-2xl border border-border bg-surface p-1">
-          {periods.map((item) => (
-            <AnimatedPressable
-              key={item}
-              className={`flex-1 rounded-xl py-3 ${period === item ? "bg-ink" : ""}`}
-              onPress={() => setPeriod(item)}
-            >
-              <Text className={period === item ? "text-center font-semibold text-bg" : "text-center font-semibold text-muted"}>
-                {item}
-              </Text>
-            </AnimatedPressable>
-          ))}
-        </View>
+        <FadeInView index={0} className="rounded-3xl border border-border bg-surface p-6">
+          <View className="flex-row rounded-2xl border border-border bg-bg p-1">
+            {periodKeys.map((key) => (
+              <AnimatedPressable
+                key={key}
+                className={`flex-1 rounded-xl py-3 ${period === key ? "bg-ink" : ""}`}
+                onPress={() => setPeriod(key)}
+              >
+                <Text className={period === key ? "text-center font-semibold text-bg" : "text-center font-semibold text-muted"}>
+                  {t(`stats.periods.${key}`)}
+                </Text>
+              </AnimatedPressable>
+            ))}
+          </View>
 
-        {/* Total spend hero */}
-        <FadeInView index={0} className="rounded-2xl border border-border bg-surface p-6">
-          <Text className="text-sm font-semibold text-muted">Расходы · {period}</Text>
+          <Text className="mt-6 text-sm font-semibold text-muted">{t("stats.spendingLabel", { period: t(`stats.periods.${period}`) })}</Text>
           <View className="mt-3 flex-row items-end gap-2">
-            <Text className="text-5xl font-bold tracking-tighter text-ink">
-              {new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 0 }).format(periodTotal)}
-            </Text>
-            <Text className="mb-1.5 text-xl font-semibold text-muted">{primaryCurrency}</Text>
+            <Text className="text-6xl font-bold tracking-tighter text-ink">{formattedPeriodTotal}</Text>
+            <Text className="mb-2 text-xl font-semibold text-muted">{primaryCurrency}</Text>
           </View>
           {analyticsError ? <Text className="mt-3 text-xs text-danger">{analyticsError}</Text> : null}
+
+          <View className="mt-6 flex-row gap-2">
+            <MetricPill label={t("stats.metrics.average")} value={formattedAverage} suffix={primaryCurrency} />
+            <MetricPill label={t("stats.metrics.active")} value={activeCount} />
+            <MetricPill label={t("stats.metrics.top")} value={topShare > 0 ? `${topShare}%` : "0%"} />
+          </View>
         </FadeInView>
 
-        {/* Average + Count */}
-        <View className="flex-row gap-3">
-          <FadeInView index={1} className="flex-1 rounded-2xl border border-border bg-surface p-5">
-            <Text className="text-sm font-semibold text-muted">Среднее</Text>
-            <View className="mt-3 flex-row items-end gap-1.5">
-              <Text className="text-2xl font-bold tracking-tight text-ink">
-                {new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 0 }).format(averagePerSub)}
-              </Text>
-              <Text className="mb-0.5 text-sm text-muted">{primaryCurrency}</Text>
-            </View>
-          </FadeInView>
-          <FadeInView index={2} className="flex-1 rounded-2xl border border-border bg-surface p-5">
-            <Text className="text-sm font-semibold text-muted">Подписок</Text>
-            <View className="mt-3 flex-row items-end gap-1.5">
-              <Text className="text-2xl font-bold tracking-tight text-ink">{activeCount}</Text>
-              <Text className="mb-0.5 text-sm text-muted">активных</Text>
-            </View>
-          </FadeInView>
-        </View>
-
-        {/* Last 6 months chart */}
-        <FadeInView index={3} className="rounded-2xl border border-border bg-surface p-5">
-          <Text className="mb-4 text-sm font-semibold text-muted">За 6 месяцев</Text>
+        <FadeInView index={1} className="rounded-2xl border border-border bg-surface p-5">
           <MonthlyChart data={monthlyHistory} monthlyTotal={monthlyTotal} primaryCurrency={primaryCurrency} />
         </FadeInView>
 
-        {/* Category breakdown */}
-        {categoryBreakdownItems.length > 0 ? (
-          <FadeInView index={4} className="rounded-2xl border border-border bg-surface p-5">
-            <Text className="mb-5 text-sm font-semibold text-muted">По категориям</Text>
-            {categoryBreakdownItems.map((item) => {
-              const pct = maxCategoryAmount > 0 ? item.amount / maxCategoryAmount : 0;
-              return (
-                <AnimatedPressable key={item.label} className="mb-5" onPress={() => setSelectedCategory(item.key)}>
-                  <View className="mb-2.5 flex-row items-center justify-between">
-                    <Text className="text-base text-ink">{item.label}</Text>
-                    <Text className="font-semibold text-subtle">
-                      {new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 0 }).format(item.amount * periodMultiplier)} {primaryCurrency}
-                    </Text>
-                  </View>
-                  <View className="h-0.5 overflow-hidden rounded-full bg-border">
-                    <View className="h-0.5 rounded-full bg-ink" style={{ width: `${pct * 100}%` }} />
-                  </View>
-                </AnimatedPressable>
-              );
-            })}
-          </FadeInView>
-        ) : null}
-
-        {/* Pie chart */}
-        <FadeInView index={5}>
+        <FadeInView index={2}>
           <CategoryPie
             values={byCategory}
             primaryCurrency={primaryCurrency}
@@ -135,13 +122,13 @@ export default function StatsScreen() {
         </FadeInView>
 
         {selectedCategory ? (
-          <FadeInView index={6} className="rounded-2xl border border-border bg-surface p-5">
+          <FadeInView index={3} className="rounded-2xl border border-border bg-surface p-5">
             <View className="mb-4 flex-row items-center justify-between">
               <Text className="text-sm font-semibold text-muted">
-                {categoryLabels[selectedCategory as keyof typeof categoryLabels] ?? selectedCategory}
+                {t(`categories.${selectedCategory}`, selectedCategory)}
               </Text>
               <AnimatedPressable onPress={() => setSelectedCategory(null)}>
-                <Text className="text-xs font-semibold text-subtle">Сбросить</Text>
+                <Text className="text-xs font-semibold text-subtle">{t("stats.resetFilter")}</Text>
               </AnimatedPressable>
             </View>
             <View className="gap-3">
@@ -167,7 +154,7 @@ export default function StatsScreen() {
                         </Text>
                       </View>
                     </View>
-                    <Text className="font-bold text-subtle">{formatMoney(monthly, subscription.currency)}/мес</Text>
+                    <Text className="font-bold text-subtle">{formatMoney(monthly, subscription.currency)}{t("common.perMonth")}</Text>
                   </AnimatedPressable>
                 );
               })}
@@ -175,8 +162,13 @@ export default function StatsScreen() {
           </FadeInView>
         ) : null}
 
-        <FadeInView index={selectedCategory ? 7 : 6} className="rounded-2xl border border-border bg-surface p-5">
-          <Text className="mb-5 text-sm font-semibold text-muted">Топ подписок</Text>
+        <FadeInView index={selectedCategory ? 4 : 3} className="rounded-2xl border border-border bg-surface p-5">
+          <View className="mb-5 flex-row items-center justify-between">
+            <Text className="text-sm font-semibold text-muted">{t("stats.topSubscriptions")}</Text>
+            {topSubscription ? (
+              <Text className="text-xs font-semibold text-subtle">{t("stats.ofPeriod", { percent: topShare })}</Text>
+            ) : null}
+          </View>
           <View className="gap-4">
             {topSubscriptions.slice(0, 5).map((subscription) => {
               const monthly = normalizeMonthlyAmount(subscription);
@@ -196,7 +188,7 @@ export default function StatsScreen() {
                     <View className="flex-1">
                       <Text className="font-semibold text-ink">{subscription.name}</Text>
                       <Text className="mt-0.5 text-xs text-muted">
-                        {formatMoney(subscription.amount, subscription.currency)} · {formatMoney(monthly, subscription.currency)}/мес
+                        {formatMoney(subscription.amount, subscription.currency)} · {formatMoney(monthly, subscription.currency)}{t("common.perMonth")}
                       </Text>
                     </View>
                   </View>
@@ -207,15 +199,15 @@ export default function StatsScreen() {
           </View>
         </FadeInView>
 
-        {/* Forecast */}
-        <FadeInView index={selectedCategory ? 8 : 7}>
+        <FadeInView index={selectedCategory ? 5 : 4}>
           <View className="rounded-2xl bg-ink p-6">
-            <Text className="text-sm font-semibold text-bg/50">Прогноз</Text>
+            <Text className="text-sm font-semibold text-bg/50">{t("stats.nextMonth")}</Text>
             <View className="mt-3 flex-row items-center justify-between gap-4">
               <Text className="flex-1 text-base font-bold text-bg">
-                В следующем месяце ожидается {formatMoney(monthlyTotal, primaryCurrency)}
+                {formatMoney(monthlyTotal, primaryCurrency)}
+                {topSubscription ? ` · ${topSubscription.name}` : ""}
               </Text>
-              <Text className="text-2xl text-bg/60">{forecastDelta >= 0 ? "↗" : "↘"}</Text>
+              <Text className="text-2xl text-bg/60">→</Text>
             </View>
           </View>
         </FadeInView>

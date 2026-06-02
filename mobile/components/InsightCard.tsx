@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { formatMoney, normalizeMonthlyAmount } from "@/lib/subscriptionMath";
 import { Subscription } from "@/lib/types";
 import { convertAmount, useCurrencyStore } from "@/store/currencyStore";
@@ -17,6 +18,7 @@ type Insight = {
 };
 
 export function InsightCard({ subscriptions }: Props) {
+  const { t } = useTranslation();
   const primaryCurrency = useSettingsStore((state) => state.primaryCurrency);
   const rates = useCurrencyStore((state) => state.rates);
 
@@ -40,8 +42,8 @@ export function InsightCard({ subscriptions }: Props) {
       const [day, total] = [...byDay.entries()].sort((a, b) => b[1] - a[1])[0];
       return {
         icon: "trending-up",
-        label: "Самый дорогой день",
-        value: `${day}-е · ${formatMoney(total, primaryCurrency)}`,
+        label: t("stats.topSubscriptions"),
+        value: `${day} · ${formatMoney(total, primaryCurrency)}`,
       };
     }
 
@@ -49,10 +51,10 @@ export function InsightCard({ subscriptions }: Props) {
     const top = [...withMonthly].sort((a, b) => b.monthly - a.monthly)[0];
     return {
       icon: "star",
-      label: "Самая дорогая",
-      value: `${top.name} · ${formatMoney(top.monthly, primaryCurrency)}/мес`,
+      label: t("stats.metrics.top"),
+      value: `${top.name} · ${formatMoney(top.monthly, primaryCurrency)}${t("common.perMonth")}`,
     };
-  }, [subscriptions, primaryCurrency, rates]);
+  }, [subscriptions, primaryCurrency, rates, t]);
 
   if (!insight) return null;
 

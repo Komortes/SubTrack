@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiRequest } from "./api";
+import { ApiError, apiRequest } from "./api";
 
 const OFFLINE_QUEUE_KEY = "subtrack:offline-queue";
 
@@ -38,14 +38,39 @@ export async function flushOfflineQueue(): Promise<void> {
     try {
       await apiRequest(mutation.path, {
         method: mutation.method,
-        body: mutation.payload ? JSON.stringify(mutation.payload) : undefined
+        body: mutation.payload ? JSON.stringify(sanitizeMutationPayload(mutation)) : undefined
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        continue;
+      }
       remaining.push(mutation);
     }
   }
 
   await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
+}
+
+function sanitizeMutationPayload(mutation: OfflineMutation): unknown {
+  if (!mutation.payload || typeof mutation.payload !== "object") {
+    return mutation.payload;
+  }
+
+  const payload = { ...(mutation.payload as Record<string, unknown>) };
+
+  if (mutation.method === "PUT" && mutation.path.startsWith("/subscriptions/")) {
+    delete payload.id;
+  }
+
+  if (mutation.method === "POST" && mutation.path === "/subscriptions" && !isUuid(payload.id)) {
+    delete payload.id;
+  }
+
+  return payload;
+}
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function compactQueue(queue: OfflineMutation[]): OfflineMutation[] {

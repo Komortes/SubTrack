@@ -12,6 +12,9 @@ export const seedSubscriptions: Subscription[] = [
     iconSlug: "spotify",
     color: "#1DB954",
     isActive: true,
+    isTrial: false,
+    isArchived: false,
+    cancelReminderDays: null,
     createdAt: "2026-04-20T10:00:00.000Z"
   },
   {
@@ -25,6 +28,9 @@ export const seedSubscriptions: Subscription[] = [
     iconSlug: "chatgpt",
     color: "#111827",
     isActive: true,
+    isTrial: false,
+    isArchived: false,
+    cancelReminderDays: null,
     createdAt: "2026-04-18T10:00:00.000Z"
   },
   {
@@ -38,6 +44,9 @@ export const seedSubscriptions: Subscription[] = [
     iconSlug: "icloud",
     color: "#2563EB",
     isActive: true,
+    isTrial: false,
+    isArchived: false,
+    cancelReminderDays: null,
     createdAt: "2026-04-10T10:00:00.000Z"
   },
   {
@@ -51,6 +60,9 @@ export const seedSubscriptions: Subscription[] = [
     iconSlug: "adobe",
     color: "#DC2626",
     isActive: true,
+    isTrial: false,
+    isArchived: false,
+    cancelReminderDays: null,
     createdAt: "2026-03-02T10:00:00.000Z"
   }
 ];

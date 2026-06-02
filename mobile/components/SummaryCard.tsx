@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { runOnJS, useAnimatedReaction, useSharedValue, withTiming } from "react-native-reanimated";
+import { useTranslation } from "react-i18next";
 import { formatMoney, monthProgress } from "@/lib/subscriptionMath";
 import { useSettingsStore } from "@/store/settingsStore";
 
@@ -34,6 +35,7 @@ function useCountingValue(target: number): number {
 }
 
 export function SummaryCard({ monthlyTotal, yearlyTotal, trend }: Props) {
+  const { t } = useTranslation();
   const progress = monthProgress();
   const primaryCurrency = useSettingsStore((state) => state.primaryCurrency);
   const animatedMonthly = useCountingValue(monthlyTotal);
@@ -41,19 +43,19 @@ export function SummaryCard({ monthlyTotal, yearlyTotal, trend }: Props) {
 
   const trendText =
     trend == null ? null
-    : trend === 0 ? "= как в прошлом месяце"
-    : trend > 0 ? `↑ ${Math.abs(trend).toFixed(0)}% vs прошлый месяц`
-    : `↓ ${Math.abs(trend).toFixed(0)}% vs прошлый месяц`;
+    : trend === 0 ? `= ${t("home.monthly")}`
+    : trend > 0 ? `↑ ${Math.abs(trend).toFixed(0)}% ${t("stats.periods.month")}`
+    : `↓ ${Math.abs(trend).toFixed(0)}% ${t("stats.periods.month")}`;
 
   const trendPositive = trend != null && trend > 0;
 
   return (
     <View className="rounded-3xl border border-border bg-surface p-6">
-      <Text className="text-xs font-semibold uppercase tracking-widest text-muted">Текущий месяц</Text>
+      <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("stats.periods.month")}</Text>
       <View className="mt-3 flex-row items-end justify-between">
         <View className="flex-1 pr-4">
           <Text className="text-4xl font-bold tracking-tighter text-ink">{formatMoney(animatedMonthly, primaryCurrency)}</Text>
-          <Text className="mt-2 text-sm text-subtle">~{formatMoney(animatedYearly, primaryCurrency)} в год</Text>
+          <Text className="mt-2 text-sm text-subtle">~{formatMoney(animatedYearly, primaryCurrency)} {t("home.yearly")}</Text>
           {trendText ? (
             <Text className={`mt-1.5 text-xs font-semibold ${trendPositive ? "text-danger" : "text-subtle"}`}>
               {trendText}

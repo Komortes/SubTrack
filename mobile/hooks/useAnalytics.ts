@@ -1,11 +1,11 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as api from "@/lib/api";
+import i18next from "@/lib/i18n";
 import { normalizeMonthlyAmount } from "@/lib/subscriptionMath";
 import { useAuthStore } from "@/store/authStore";
 import { convertAmount, useCurrencyStore } from "@/store/currencyStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useSubscriptionStore } from "@/store/subscriptionStore";
-import { useState } from "react";
 
 export function useAnalytics() {
   const subscriptions = useSubscriptionStore((state) => state.subscriptions);
@@ -23,7 +23,7 @@ export function useAnalytics() {
   }, [fetchRates]);
 
   const localAnalytics = useMemo(() => {
-    const active = subscriptions.filter((item) => item.isActive);
+    const active = subscriptions.filter((item) => item.isActive && !item.isArchived);
 
     function toMonthlyPrimary(subscription: typeof active[number]): number {
       const monthly = normalizeMonthlyAmount(subscription);
@@ -67,7 +67,7 @@ export function useAnalytics() {
       })
       .catch((error) => {
         if (!cancelled) {
-          setAnalyticsError(error instanceof Error ? error.message : "Не удалось загрузить аналитику");
+          setAnalyticsError(error instanceof Error ? error.message : i18next.t("common.error"));
         }
       });
 

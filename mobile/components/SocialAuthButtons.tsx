@@ -1,7 +1,9 @@
+import { Feather } from "@expo/vector-icons";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, Platform, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { useAuthStore } from "@/store/authStore";
 
@@ -12,6 +14,28 @@ type Props = {
 };
 
 export function SocialAuthButtons({ onDone }: Props) {
+  const { t } = useTranslation();
+  const clientId = getPlatformClientId();
+
+  if (!clientId) {
+    return (
+      <View className="mt-4 gap-3">
+        <AnimatedPressable
+          className="flex-row items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-5 py-4"
+          onPress={() => Alert.alert("Google Sign In", t("auth.social.continueWithGoogle"))}
+        >
+          <Feather name="chrome" size={17} color="#a3a3a3" />
+          <Text className="text-center font-semibold text-muted">{t("auth.social.continueWithGoogle")}</Text>
+        </AnimatedPressable>
+      </View>
+    );
+  }
+
+  return <GoogleAuthButton onDone={onDone} />;
+}
+
+function GoogleAuthButton({ onDone }: Props) {
+  const { t } = useTranslation();
   const socialLogin = useAuthStore((state) => state.socialLogin);
   const isLoading = useAuthStore((state) => state.isLoading);
   const [googleRequest, googleResponse, promptGoogle] = Google.useIdTokenAuthRequest({
@@ -32,23 +56,25 @@ export function SocialAuthButtons({ onDone }: Props) {
   }, [googleResponse, onDone, socialLogin]);
 
   async function signInWithGoogle() {
-    if (!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID && !process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) {
-      Alert.alert("Google Sign In не настроен", "Добавь Google Client ID в mobile/.env.");
-      return;
-    }
-
     await promptGoogle();
   }
 
   return (
     <View className="mt-4 gap-3">
       <AnimatedPressable
-        className="rounded-2xl border border-border bg-surface px-5 py-4"
+        className="flex-row items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-5 py-4"
         disabled={!googleRequest || isLoading}
         onPress={signInWithGoogle}
       >
-        <Text className="text-center font-semibold text-ink">Войти через Google</Text>
+        <Feather name="chrome" size={17} color="#a3a3a3" />
+        <Text className="text-center font-semibold text-ink">{t("auth.social.continueWithGoogle")}</Text>
       </AnimatedPressable>
     </View>
   );
+}
+
+function getPlatformClientId(): string | undefined {
+  if (Platform.OS === "ios") return process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+  if (Platform.OS === "android") return process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+  return process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 }
