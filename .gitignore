@@ -2,6 +2,7 @@
 .superpowers/
 docs/superpowers/
 node_modules/
+.impeccable/
 .expo/
 dist/
 build/
@@ -19,3 +20,6 @@ storage/framework/sessions/*
 storage/framework/views/*
 storage/logs/*
 bootstrap/cache/*
+mobile/DESIGN.md
+.gitignore
+mobile/PRODUCT.md

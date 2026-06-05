@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useWindowDimensions, View, Text } from "react-native";
+import { AccessibilityInfo, useColorScheme, useWindowDimensions, View, Text } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -41,14 +41,19 @@ const STEPS = 28;
 
 export function HeroPhone() {
   const { width: screenW } = useWindowDimensions();
+  const colorScheme = useColorScheme();
+  const screenBg = colorScheme === "dark" ? "#0a0a0a" : "#fafafa";
   const translateY = useSharedValue(0);
 
   useEffect(() => {
-    translateY.value = withRepeat(
-      withTiming(-CYCLE, { duration: 9000, easing: Easing.linear }),
-      -1,
-      false
-    );
+    AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
+      if (reduceMotion) return;
+      translateY.value = withRepeat(
+        withTiming(-CYCLE, { duration: 9000, easing: Easing.linear }),
+        -1,
+        false
+      );
+    });
   }, [translateY]);
 
   const animStyle = useAnimatedStyle(() => ({
@@ -225,7 +230,7 @@ export function HeroPhone() {
       </View>
 
       {/* ── Side covers ──
-          BG-coloured strips to the left and right of the phone.
+          Screen-bg-coloured strips to the left and right of the phone.
           Hides any border/frame bleed that escapes overflow:hidden due to 3D transform. */}
       <View
         pointerEvents="none"
@@ -234,7 +239,7 @@ export function HeroPhone() {
           top: 0, left: 0,
           width: sideW,
           height: CROP_H,
-          backgroundColor: BG,
+          backgroundColor: screenBg,
           zIndex: 50,
         }}
       />
@@ -245,7 +250,7 @@ export function HeroPhone() {
           top: 0, right: 0,
           width: sideW,
           height: CROP_H,
-          backgroundColor: BG,
+          backgroundColor: screenBg,
           zIndex: 50,
         }}
       />

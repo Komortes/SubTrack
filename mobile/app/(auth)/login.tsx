@@ -20,6 +20,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [isLoadingOffline, setIsLoadingOffline] = useState(false);
   const passwordRef = useRef<TextInput>(null);
   const isDark = useIsDark();
   const primaryIconColor = isDark ? "#0a0a0a" : "#fafafa";
@@ -40,8 +41,13 @@ export default function LoginScreen() {
   }
 
   async function continueOffline() {
-    await enableOfflineMode();
-    router.replace("/(app)/(tabs)");
+    setIsLoadingOffline(true);
+    try {
+      await enableOfflineMode();
+      router.replace("/(app)/(tabs)");
+    } finally {
+      setIsLoadingOffline(false);
+    }
   }
 
   function updateEmail(value: string) {
@@ -74,10 +80,6 @@ export default function LoginScreen() {
           subtitle={t("auth.login.subtitle")}
         />
         <AuthValueStrip />
-
-        <View className="mt-8">
-          <Text className="text-sm font-semibold text-muted">{t("auth.login.email")}</Text>
-        </View>
 
         <AuthField
           icon="mail"
@@ -129,11 +131,13 @@ export default function LoginScreen() {
 
         <AnimatedPressable
           className="mt-3 flex-row items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-5 py-4"
-          disabled={isLoading}
+          disabled={isLoading || isLoadingOffline}
           onPress={continueOffline}
         >
           <Feather name="hard-drive" size={17} color="#a3a3a3" />
-          <Text className="text-center font-semibold text-subtle">{t("auth.login.continueOffline")}</Text>
+          <Text className="text-center font-semibold text-subtle">
+            {isLoadingOffline ? "…" : t("auth.login.continueOffline")}
+          </Text>
         </AnimatedPressable>
 
         <AuthDivider />

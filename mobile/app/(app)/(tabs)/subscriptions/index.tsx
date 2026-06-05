@@ -303,7 +303,9 @@ export default function SubscriptionsScreen() {
         <View>
           <Text className="text-3xl font-bold tracking-tight text-ink">{t("subscriptions.title")}</Text>
           <Text className="mt-1 text-sm text-subtle">
-            {showArchived ? `${t("subscriptions.detail.archived")}: ${filtered.length}` : `${filtered.length} / ${subscriptions.length}`}
+            {showArchived
+              ? `${t("subscriptions.detail.archived")}: ${filtered.length}`
+              : `${filtered.length} / ${subscriptions.length}${dueSoonCount > 0 ? ` · ${dueSoonCount} due soon` : ""}`}
           </Text>
         </View>
         <View className="flex-row items-center gap-2">
@@ -325,21 +327,6 @@ export default function SubscriptionsScreen() {
           >
             <Feather name="sliders" size={15} color={showAdvancedFilters || filter !== "all" || groupMode !== "none" ? "#fafafa" : "#a3a3a3"} />
           </AnimatedPressable>
-        </View>
-      </View>
-
-      <View className="mt-4 flex-row gap-2">
-        <View className="flex-1 rounded-2xl border border-border bg-surface p-3">
-          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("subscriptions.filters.active")}</Text>
-          <Text className="mt-1 text-2xl font-bold text-ink">{activeCount}</Text>
-        </View>
-        <View className="flex-1 rounded-2xl border border-border bg-surface p-3">
-          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("subscriptions.filters.paused")}</Text>
-          <Text className="mt-1 text-2xl font-bold text-ink">{pausedCount}</Text>
-        </View>
-        <View className="flex-1 rounded-2xl border border-border bg-surface p-3">
-          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">7d</Text>
-          <Text className={`mt-1 text-2xl font-bold ${dueSoonCount > 0 ? "text-danger" : "text-ink"}`}>{dueSoonCount}</Text>
         </View>
       </View>
 
@@ -439,11 +426,11 @@ export default function SubscriptionsScreen() {
   const emptyComponent = (
     <EmptyState
       icon={subscriptions.length === 0 ? "credit-card" : "search"}
-      title={subscriptions.length === 0 ? t("home.noSubscriptions") : t("home.noSubscriptions")}
+      title={subscriptions.length === 0 ? t("home.noSubscriptions") : t("home.noResults")}
       subtitle={
         subscriptions.length === 0
           ? t("home.noSubscriptionsHint")
-          : t("home.noSubscriptionsHint")
+          : t("home.noResultsHint")
       }
       action={
         subscriptions.length === 0
@@ -473,7 +460,7 @@ export default function SubscriptionsScreen() {
         renderItem={renderItem}
         renderSectionHeader={({ section }) =>
           section.title ? (
-            <Text className="mb-2 mt-5 text-xs font-semibold uppercase tracking-widest text-muted">
+            <Text className="mb-2 mt-5 text-sm font-semibold text-muted">
               {section.title}
             </Text>
           ) : null

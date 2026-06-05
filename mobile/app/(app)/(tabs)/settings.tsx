@@ -111,7 +111,7 @@ function SyncStatusCard({
     <View className="mt-5 rounded-3xl border border-border bg-surface p-5">
       <View className="flex-row items-start justify-between gap-4">
         <View className="flex-1">
-          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("settings.sections.account")}</Text>
+          <Text className="text-subtle" style={{ fontSize: 10, fontWeight: "700", letterSpacing: 4, textTransform: "uppercase" }}>{t("settings.sections.account")}</Text>
           <Text className="mt-2 text-xl font-bold text-ink" numberOfLines={1}>
             {email ?? t("settings.rows.offlineMode")}
           </Text>
@@ -407,7 +407,6 @@ export default function SettingsScreen() {
     <ScreenTransition className="flex-1 bg-bg">
       <ScrollView className="flex-1 bg-bg" contentContainerClassName="px-5 pb-36 pt-16">
         <Text className="text-3xl font-bold tracking-tight text-ink">{t("settings.title")}</Text>
-        <Text className="mb-1 mt-1 text-subtle">{t("settings.sections.account")}</Text>
 
         <SyncStatusCard
           isOfflineMode={!!isOfflineMode}
@@ -465,7 +464,7 @@ export default function SettingsScreen() {
             <Divider />
             <SettingsRow
               icon="trash-2"
-              label={t("settings.rows.deleteAllData")}
+              label={t("settings.rows.deleteAccount")}
               sublabel={t("settings.rows.deleteConfirmMessage")}
               danger
               right={<Feather name="x" size={17} color="#ef4444" />}
@@ -535,7 +534,7 @@ export default function SettingsScreen() {
               className="flex-1 rounded-xl border border-border bg-surface px-4 py-3.5"
               onPress={testNotification}
             >
-              <Text className="text-center text-sm font-semibold text-ink">{t("settings.rows.notificationTime")}</Text>
+              <Text className="text-center text-sm font-semibold text-ink">{t("settings.rows.testNotification")}</Text>
             </AnimatedPressable>
           </View>
         </FadeInView>
@@ -572,7 +571,7 @@ export default function SettingsScreen() {
         </FadeInView>
 
         <FadeInView index={4}>
-          <SectionHeader title={t("settings.rows.currency")} />
+          <SectionHeader title={t("settings.sections.rates")} />
           <View className="overflow-hidden rounded-2xl border border-border bg-surface">
             <SettingsRow
               icon="refresh-cw"
@@ -659,7 +658,7 @@ export default function SettingsScreen() {
                 <Divider />
                 <SettingsRow
                   icon="mail"
-                  label={t("settings.rows.exportCsv")}
+                  label={t("settings.rows.emailCsv")}
                   sublabel={email ?? undefined}
                   right={<Feather name="mail" size={16} color="#a3a3a3" />}
                   onPress={() => {

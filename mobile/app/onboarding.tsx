@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, useColorScheme, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { FadeInView } from "@/components/FadeInView";
@@ -12,6 +13,9 @@ type FeatherIcon = keyof typeof Feather.glyphMap;
 export default function OnboardingScreen() {
   const { t } = useTranslation();
   const enableOfflineMode = useAuthStore((state) => state.useOfflineMode);
+  const [isLoadingOffline, setIsLoadingOffline] = useState(false);
+  const colorScheme = useColorScheme();
+  const iconColor = colorScheme === "dark" ? "#a3a3a3" : "#525252";
 
   const features: { icon: FeatherIcon; label: string }[] = [
     { icon: "bell",        label: t("onboarding.features.notifications") },
@@ -20,8 +24,13 @@ export default function OnboardingScreen() {
   ];
 
   async function continueOffline() {
-    await enableOfflineMode();
-    router.replace("/(app)/(tabs)");
+    setIsLoadingOffline(true);
+    try {
+      await enableOfflineMode();
+      router.replace("/(app)/(tabs)");
+    } finally {
+      setIsLoadingOffline(false);
+    }
   }
 
   return (
@@ -30,13 +39,8 @@ export default function OnboardingScreen() {
       {/* Header */}
       <FadeInView replayOnFocus={false} className="px-5">
         <Text
-          style={{
-            fontSize: 10,
-            fontWeight: "700",
-            letterSpacing: 4,
-            textTransform: "uppercase",
-            color: "#2a2a2a"
-          }}
+          className="text-subtle"
+          style={{ fontSize: 10, fontWeight: "700", letterSpacing: 4, textTransform: "uppercase" }}
         >
           SubTrack
         </Text>
@@ -54,24 +58,30 @@ export default function OnboardingScreen() {
       </FadeInView>
 
       {/* Feature tiles */}
-      <FadeInView index={2} replayOnFocus={false} className="mt-6 flex-row gap-3 px-5">
-        {features.map((f, index) => (
-          <View key={f.label} className="flex-1 rounded-2xl border border-border bg-surface p-4">
-            <Feather name={f.icon} size={20} color="#a3a3a3" />
-            <Text className="mt-2 text-xs leading-4 text-muted">{f.label}</Text>
+      <FadeInView index={2} replayOnFocus={false} className="mt-5 flex-row gap-2 px-5">
+        {features.map((f) => (
+          <View key={f.label} className="flex-1 rounded-xl border border-border bg-surface px-2.5 py-3">
+            <Feather name={f.icon} size={16} color={iconColor} />
+            <Text className="mt-1.5 text-[11px] font-semibold leading-[15px] text-subtle">{f.label}</Text>
           </View>
         ))}
       </FadeInView>
 
       {/* CTA buttons */}
-      <FadeInView index={3} replayOnFocus={false} className="mt-8 gap-3 px-5">
+      <FadeInView index={3} replayOnFocus={false} className="mt-6 gap-3 px-5">
         <Link href="/(auth)/register" asChild>
           <AnimatedPressable className="rounded-2xl bg-accent px-5 py-4">
             <Text className="text-center font-semibold text-bg">{t("onboarding.createAccount")}</Text>
           </AnimatedPressable>
         </Link>
-        <AnimatedPressable className="rounded-2xl border border-border bg-surface px-5 py-4" onPress={continueOffline}>
-          <Text className="text-center font-semibold text-subtle">{t("onboarding.continueOffline")}</Text>
+        <AnimatedPressable
+          className="rounded-2xl border border-border bg-surface px-5 py-4"
+          onPress={continueOffline}
+          disabled={isLoadingOffline}
+        >
+          <Text className="text-center font-semibold text-subtle">
+            {isLoadingOffline ? "…" : t("onboarding.continueOffline")}
+          </Text>
         </AnimatedPressable>
       </FadeInView>
 

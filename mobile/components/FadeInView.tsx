@@ -2,6 +2,7 @@ import { useFocusEffect } from "expo-router";
 import { ReactNode, useCallback } from "react";
 import { StyleProp, ViewStyle } from "react-native";
 import Animated, {
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -30,8 +31,8 @@ export function FadeInView({ children, className, index = 0, replayOnFocus = fal
   const runAnimation = useCallback(() => {
     opacity.value = replayOnFocus ? 0 : opacity.value;
     translateY.value = replayOnFocus ? 8 : translateY.value;
-    opacity.value = withDelay(delay, withTiming(1, { duration: DURATION.normal, easing: EASING.out }));
-    translateY.value = withDelay(delay, withTiming(0, { duration: DURATION.normal, easing: EASING.out }));
+    opacity.value = withDelay(delay, withTiming(1, { duration: DURATION.normal, easing: EASING.out, reduceMotion: ReduceMotion.System }));
+    translateY.value = withDelay(delay, withTiming(0, { duration: DURATION.normal, easing: EASING.out, reduceMotion: ReduceMotion.System }));
   }, [delay, opacity, replayOnFocus, translateY]);
 
   useFocusEffect(

@@ -71,10 +71,6 @@ export default function RegisterScreen() {
         />
         <AuthValueStrip />
 
-        <View className="mt-8">
-          <Text className="text-sm font-semibold text-muted">{t("auth.register.email")}</Text>
-        </View>
-
         <AuthField
           icon="mail"
           label={t("auth.register.email")}
@@ -110,9 +106,9 @@ export default function RegisterScreen() {
 
         <AuthField
           icon="check-circle"
-          label={t("auth.register.password")}
+          label={t("auth.register.passwordConfirm")}
           inputRef={confirmRef}
-          placeholder={t("auth.register.password")}
+          placeholder={t("auth.register.passwordConfirm")}
           secureTextEntry={!showPassword}
           textContentType="newPassword"
           returnKeyType="done"
