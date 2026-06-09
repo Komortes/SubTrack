@@ -14,7 +14,7 @@ type ProStore = {
   _handleCustomerInfo: (info: CustomerInfo) => void;
 };
 
-const RC_IOS_KEY = "REVENUECAT_IOS_API_KEY_PLACEHOLDER";
+const RC_IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? "";
 
 export const useProStore = create<ProStore>()((set, get) => ({
   isPro: false,

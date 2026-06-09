@@ -1,36 +1,66 @@
 # SubTrack
 
-Mobile subscription tracker with reminders, spending analytics, offline-first local state, and optional account sync.
+A mobile app for tracking subscriptions — with spending analytics, renewal reminders, offline-first local state, and optional cloud sync.
 
-## Structure
+## Tech Stack
 
-- `mobile/` - Expo React Native app with Expo Router, NativeWind, Zustand, AsyncStorage, SecureStore, and Expo notifications.
-- `backend/` - Laravel API skeleton for Sanctum auth, subscriptions, analytics, push tokens, queues, and scheduler jobs.
+| Layer | Tech |
+|---|---|
+| Mobile | Expo (React Native), Expo Router, NativeWind, Zustand |
+| Backend | Laravel 11, Sanctum auth, SQLite / Postgres, Redis |
+| Push | Expo Push Notifications |
+| In-app purchases | RevenueCat |
+| Auth | Email/password + Google Sign-In |
+| Deploy | Fly.io (Docker) |
 
-## MVP
+## Features
 
-- Onboarding
-- Auth screens and offline mode
-- Home, Subscriptions, Stats, Settings tabs
-- Subscription CRUD foundation
-- Local mock data and offline queue placeholders
-- Laravel API/service/job/migration skeletons
+- Track subscriptions with name, price, billing cycle, and renewal date
+- Home dashboard with upcoming renewals
+- Spending stats by category and time period
+- Push notification reminders before renewal
+- Offline-first: works without internet, syncs when back online
+- Google Sign-In and email/password auth
+- Lock screen with biometric authentication
+- Pro tier via RevenueCat in-app purchases
 
-## Next Setup Steps
+## Project Structure
 
-Install mobile dependencies from `mobile/package.json`, then run Expo:
+```
+SubTrack/
+├── mobile/     # Expo React Native app
+└── backend/    # Laravel API
+```
+
+## Setup
+
+### Mobile
 
 ```sh
 cd mobile
+cp .env.example .env   # fill in your keys
 npm install
-npm run start:node22
+npm run start:node22   # iOS Simulator (requires Node 22 via Homebrew)
 ```
 
-Create the Laravel application in `backend/` or install dependencies from `backend/composer.json`, then run migrations.
+For a physical device over LAN:
 
-The local Homebrew `node@22` install is preferred for Expo. The app starts on port `8082` because `8081` may already be used by another Expo project.
+```sh
+cp .env.device.example .env   # set EXPO_PUBLIC_API_URL to your Mac's LAN IP
+npm run start:device
+```
 
-Run the backend API:
+Environment variables (`mobile/.env`):
+
+| Variable | Description |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | Backend API base URL |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google OAuth web client ID |
+| `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | Google OAuth iOS client ID |
+| `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` | Google OAuth Android client ID |
+| `EXPO_PUBLIC_REVENUECAT_IOS_KEY` | RevenueCat iOS API key |
+
+### Backend
 
 ```sh
 cd backend
@@ -42,17 +72,16 @@ php artisan migrate
 php artisan serve --host=127.0.0.1 --port=8000
 ```
 
-For Expo Go on a physical phone, run the backend on the LAN interface and set the mobile API URL to the Mac IP:
+For LAN access from a physical device:
 
 ```sh
-cd backend
 php artisan serve --host=0.0.0.0 --port=8000
 ```
 
-```sh
-cd mobile
-cp .env.device.example .env
-npm run start:device
-```
+### Deploy (Fly.io)
 
-For iOS Simulator, use `mobile/.env.example` and `npm run start:node22`.
+See [`backend/DEPLOY.md`](backend/DEPLOY.md).
+
+## License
+
+MIT
