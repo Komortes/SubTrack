@@ -404,7 +404,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScreenTransition className="flex-1 bg-bg">
+    <ScreenTransition className="flex-1 bg-bg" replayOnFocus={false}>
       <ScrollView className="flex-1 bg-bg" contentContainerClassName="px-5 pb-36 pt-16">
         <Text className="text-3xl font-bold tracking-tight text-ink">{t("settings.title")}</Text>
 

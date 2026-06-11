@@ -82,14 +82,10 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
     transform: [{ translateX: dotX.value }]
   }));
 
-  if (shouldHide) {
-    return null;
-  }
-
   return (
     <View
-      pointerEvents="box-none"
-      style={{ position: "absolute", bottom: 20, left: 16, right: 16 }}
+      pointerEvents={shouldHide ? "none" : "box-none"}
+      style={{ position: "absolute", bottom: 20, left: 16, right: 16, opacity: shouldHide ? 0 : 1 }}
     >
       <View
         style={{
@@ -175,7 +171,7 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         lazy: false,
-        sceneStyle: { backgroundColor: "#0a0a0a" }
+        sceneStyle: { backgroundColor: "transparent" }
       }}
     >
       <Tabs.Screen name="index" />

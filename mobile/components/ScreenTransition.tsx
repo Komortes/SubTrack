@@ -1,19 +1,22 @@
 import { useFocusEffect } from "expo-router";
-import { ReactNode, useCallback } from "react";
+import { ReactNode, useCallback, useRef } from "react";
 import { StyleProp, ViewStyle } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { DURATION, EASING } from "@/utils/animations";
 
 type Props = {
   children: ReactNode;
   className?: string;
   style?: StyleProp<ViewStyle>;
+  /** When false, plays the entrance animation only on the first focus (good for tab screens). Default: true */
+  replayOnFocus?: boolean;
 };
 
-export function ScreenTransition({ children, className, style }: Props) {
+export function ScreenTransition({ children, className, style, replayOnFocus = true }: Props) {
   const opacity = useSharedValue(0);
-  const translateY = useSharedValue(10);
-  const scale = useSharedValue(0.99);
+  const translateY = useSharedValue(replayOnFocus ? 0 : 14);
+  const scale = useSharedValue(replayOnFocus ? 1 : 0.985);
+  const hasPlayed = useRef(false);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -22,17 +25,20 @@ export function ScreenTransition({ children, className, style }: Props) {
 
   useFocusEffect(
     useCallback(() => {
+      if (!replayOnFocus && hasPlayed.current) return;
+      hasPlayed.current = true;
+
       opacity.value = 0;
       translateY.value = 14;
       scale.value = 0.985;
-      opacity.value = withTiming(1, { duration: DURATION.screen, easing: EASING.out });
-      translateY.value = withTiming(0, { duration: DURATION.screen, easing: EASING.out });
-      scale.value = withTiming(1, { duration: DURATION.screen, easing: EASING.out });
-    }, [opacity, scale, translateY])
+      opacity.value = withTiming(1, { duration: DURATION.screen, easing: EASING.out, reduceMotion: ReduceMotion.System });
+      translateY.value = withTiming(0, { duration: DURATION.screen, easing: EASING.out, reduceMotion: ReduceMotion.System });
+      scale.value = withTiming(1, { duration: DURATION.screen, easing: EASING.out, reduceMotion: ReduceMotion.System });
+    }, [opacity, scale, translateY, replayOnFocus])
   );
 
   return (
-    <Animated.View className={className} style={[{ flex: 1, backgroundColor: "#0a0a0a" }, animatedStyle, style]}>
+    <Animated.View className={className} style={[{ flex: 1 }, animatedStyle, style]}>
       {children}
     </Animated.View>
   );

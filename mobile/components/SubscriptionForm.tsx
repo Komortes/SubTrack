@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, Switch, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
@@ -411,8 +411,8 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
             <View className="flex-row items-center gap-3">
               <View className="h-8 w-8 rounded-full" style={{ backgroundColor: color }} />
               <View>
-                <Text className="text-sm font-semibold text-ink">{t("subscriptionForm.fields.currency")}</Text>
-                <Text className="mt-0.5 text-xs text-muted">{t("subscriptionForm.fields.category")}</Text>
+                <Text className="text-sm font-semibold text-ink">Appearance</Text>
+                <Text className="mt-0.5 text-xs text-muted">Icon & color</Text>
               </View>
             </View>
             <Feather name={appearanceExpanded ? "chevron-up" : "chevron-down"} size={18} color="#a3a3a3" />
@@ -420,7 +420,7 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
 
           {appearanceExpanded ? (
             <View>
-              <Label>{t("subscriptionForm.fields.name")}</Label>
+              <Label>Icon</Label>
               <View className="flex-row flex-wrap gap-3">
                 {(iconsExpanded ? serviceIconOptions : serviceIconOptions.slice(0, 8)).map((item) => {
                   const selected = iconSlug === item.slug;
@@ -455,7 +455,7 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
                 </AnimatedPressable>
               ) : null}
 
-              <Label>{t("subscriptionForm.fields.currency")}</Label>
+              <Label>Color</Label>
               <View className="flex-row flex-wrap gap-3">
                 {iconColors.map((item) => {
                   const selected = color.toLowerCase() === item.toLowerCase();
@@ -491,20 +491,22 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
           />
 
           <Label>{t("subscriptionForm.fields.currency")}</Label>
-          <View className="flex-row rounded-xl border border-border bg-bg p-1">
-            {currencies.map((item) => (
-              <AnimatedPressable
-                key={item}
-                className={`h-12 flex-1 items-center justify-center rounded-lg ${currency === item ? "bg-ink" : ""}`}
-                hitSlop={4}
-                onPress={() => setCurrency(item)}
-              >
-                <Text className={currency === item ? "font-semibold text-bg" : "font-semibold text-muted"}>
-                  {item}
-                </Text>
-              </AnimatedPressable>
-            ))}
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="rounded-xl border border-border bg-bg p-1">
+            <View className="flex-row gap-1">
+              {currencies.map((item) => (
+                <AnimatedPressable
+                  key={item}
+                  className={`h-11 min-w-[56px] items-center justify-center rounded-lg px-3 ${currency === item ? "bg-ink" : ""}`}
+                  hitSlop={4}
+                  onPress={() => setCurrency(item)}
+                >
+                  <Text className={`text-sm ${currency === item ? "font-semibold text-bg" : "font-semibold text-muted"}`}>
+                    {item}
+                  </Text>
+                </AnimatedPressable>
+              ))}
+            </View>
+          </ScrollView>
         </View>
 
         <View className="rounded-2xl border border-border bg-surface p-5">
@@ -550,7 +552,7 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
             <View className="mt-2 flex-row items-center gap-2">
               <Feather name="info" size={13} color="#525252" />
               <Text className="flex-1 text-xs text-muted">
-                {t("subscriptionForm.fields.renewalDate")}
+                Date is in the past — will be auto-advanced to the next upcoming renewal.
               </Text>
             </View>
           ) : null}

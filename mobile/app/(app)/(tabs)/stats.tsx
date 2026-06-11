@@ -71,12 +71,23 @@ export default function StatsScreen() {
     : [];
 
   return (
-    <ScreenTransition className="flex-1 bg-bg">
+    <ScreenTransition className="flex-1 bg-bg" replayOnFocus={false}>
       <ScrollView className="flex-1 bg-bg" contentContainerClassName="gap-5 px-5 pb-36 pt-16">
 
         <View>
-          <Text className="text-3xl font-bold tracking-tight text-ink">{t("stats.title")}</Text>
-          <Text className="mt-1 text-subtle">{t("stats.subtitle")}</Text>
+          <View className="flex-row items-start justify-between">
+            <View>
+              <Text className="text-3xl font-bold tracking-tight text-ink">{t("stats.title")}</Text>
+              <Text className="mt-1 text-subtle">{t("stats.subtitle")}</Text>
+            </View>
+            <AnimatedPressable
+              className="flex-row items-center gap-1.5 rounded-2xl border border-border bg-surface px-3 py-2"
+              onPress={() => router.push("/(app)/wrapped")}
+            >
+              <Text className="text-sm">🎉</Text>
+              <Text className="text-xs font-semibold text-ink">Wrapped</Text>
+            </AnimatedPressable>
+          </View>
         </View>
 
         <FadeInView index={0} className="rounded-3xl border border-border bg-surface p-6">

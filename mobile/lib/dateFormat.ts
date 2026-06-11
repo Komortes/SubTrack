@@ -17,9 +17,9 @@ export function formatDate(value: string, format: UserSettings["dateFormat"]): s
   return `${day}.${month}.${year}`;
 }
 
-export function formatShortDate(value: string): string {
+export function formatShortDate(value: string, locale = "en-US"): string {
   const date = toLocalDate(value);
-  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short" }).format(date);
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(date);
 }
 
 export function toLocalDate(value: string): Date {

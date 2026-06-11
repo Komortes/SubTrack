@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
-import { runOnJS, useAnimatedReaction, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { ReduceMotion, runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { formatMoney, monthProgress } from "@/lib/subscriptionMath";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -41,6 +41,12 @@ export function SummaryCard({ monthlyTotal, yearlyTotal, trend }: Props) {
   const animatedMonthly = useCountingValue(monthlyTotal);
   const animatedYearly = useCountingValue(yearlyTotal);
 
+  const barAnim = useSharedValue(0);
+  useEffect(() => {
+    barAnim.value = withTiming(progress, { duration: 600, reduceMotion: ReduceMotion.System });
+  }, [progress, barAnim]);
+  const barStyle = useAnimatedStyle(() => ({ height: `${barAnim.value * 100}%` as unknown as number }));
+
   const trendText =
     trend == null ? null
     : trend === 0 ? `= ${t("home.monthly")}`
@@ -63,7 +69,7 @@ export function SummaryCard({ monthlyTotal, yearlyTotal, trend }: Props) {
           ) : null}
         </View>
         <View className="h-24 w-4 justify-end overflow-hidden rounded-full bg-border">
-          <View className="rounded-full bg-neutral-500" style={{ height: `${Math.round(progress * 100)}%` }} />
+          <Animated.View className="rounded-full bg-neutral-500" style={barStyle} />
         </View>
       </View>
     </View>

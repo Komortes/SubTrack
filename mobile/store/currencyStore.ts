@@ -4,14 +4,36 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import i18next from "@/lib/i18n";
 
 export type CurrencyRates = {
-  EUR: number; // 1 EUR = X CZK
-  USD: number; // 1 USD = X CZK
+  EUR: number;
+  USD: number;
+  GBP: number;
+  CHF: number;
+  PLN: number;
+  HUF: number;
+  JPY: number;
+  CAD: number;
+  AUD: number;
+  SEK: number;
+  NOK: number;
+  DKK: number;
 };
 
 const DEFAULT_RATES: CurrencyRates = {
   EUR: 25.2,
-  USD: 23.1
+  USD: 23.1,
+  GBP: 29.4,
+  CHF: 26.0,
+  PLN: 5.7,
+  HUF: 0.064,
+  JPY: 0.155,
+  CAD: 17.0,
+  AUD: 15.1,
+  SEK: 2.15,
+  NOK: 2.10,
+  DKK: 3.38,
 };
+
+const FETCH_CURRENCIES = "EUR,USD,GBP,CHF,PLN,HUF,JPY,CAD,AUD,SEK,NOK,DKK";
 
 type CurrencyState = {
   rates: CurrencyRates;
@@ -42,15 +64,15 @@ export const useCurrencyStore = create<CurrencyState>()(
 
         set({ isFetching: true, fetchError: null });
         try {
-          const response = await fetch("https://api.frankfurter.app/latest?from=CZK&to=EUR,USD");
+          const response = await fetch(`https://api.frankfurter.app/latest?from=CZK&to=${FETCH_CURRENCIES}`);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const data = await response.json() as { rates: { EUR: number; USD: number } };
-          // frankfurter returns how many EUR/USD per 1 CZK, we need inverse
+          const data = await response.json() as { rates: Record<string, number> };
+          const newRates = {} as Record<string, number>;
+          for (const [key, val] of Object.entries(data.rates)) {
+            newRates[key] = Math.round((1 / val) * 100) / 100;
+          }
           set({
-            rates: {
-              EUR: Math.round((1 / data.rates.EUR) * 100) / 100,
-              USD: Math.round((1 / data.rates.USD) * 100) / 100
-            },
+            rates: { ...DEFAULT_RATES, ...(newRates as CurrencyRates) },
             lastUpdated: new Date().toISOString(),
             isFetching: false,
             fetchError: null
@@ -81,8 +103,6 @@ export function convertAmount(
   rates: CurrencyRates
 ): number {
   if (fromCurrency === toCurrency) return amount;
-  // Convert to CZK first (base currency)
   const inCZK = fromCurrency === "CZK" ? amount : amount * (rates[fromCurrency as keyof CurrencyRates] ?? 1);
-  // Convert from CZK to target
   return toCurrency === "CZK" ? inCZK : inCZK / (rates[toCurrency as keyof CurrencyRates] ?? 1);
 }

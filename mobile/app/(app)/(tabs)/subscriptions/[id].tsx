@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { Alert, Linking, ScrollView, Text, View } from "react-native";
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { FadeInView } from "@/components/FadeInView";
@@ -14,6 +15,7 @@ import { useIsDark } from "@/hooks/useIsDark";
 import { useAuthStore } from "@/store/authStore";
 import { convertAmount, useCurrencyStore } from "@/store/currencyStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { getCancelInfo } from "@/lib/catalog";
 import { useSubscriptionStore } from "@/store/subscriptionStore";
 
 function subtractDays(dateStr: string, days: number): string {
@@ -71,6 +73,12 @@ export default function SubscriptionDetailsScreen() {
 
   const daysLeft = daysUntil(currentSubscription.renewalDate);
   const progress = Math.max(0, Math.min(1, 1 - daysLeft / periodDays));
+
+  const progressAnim = useSharedValue(0);
+  useEffect(() => {
+    progressAnim.value = withTiming(progress, { duration: 600, reduceMotion: ReduceMotion.System });
+  }, [progress, progressAnim]);
+  const progressBarStyle = useAnimatedStyle(() => ({ width: `${progressAnim.value * 100}%` as unknown as number }));
   const previousDateStr = subtractDays(currentSubscription.renewalDate, periodDays);
   const monthlyAmount = normalizeMonthlyAmount(currentSubscription);
   const monthlyInPrimary = convertAmount(monthlyAmount, currentSubscription.currency, primaryCurrency, rates);
@@ -196,9 +204,9 @@ export default function SubscriptionDetailsScreen() {
               <Text className="text-xs font-semibold text-subtle">{Math.round(progress * 100)}%</Text>
             </View>
             <View className="mt-3 h-1.5 overflow-hidden rounded-full bg-border">
-              <View
+              <Animated.View
                 className={`h-1.5 rounded-full ${daysLeft <= 0 ? "bg-danger" : "bg-ink"}`}
-                style={{ width: `${progress * 100}%` }}
+                style={progressBarStyle}
               />
             </View>
             <View className="mt-2 flex-row justify-between">
@@ -316,6 +324,20 @@ export default function SubscriptionDetailsScreen() {
               </Text>
             </AnimatedPressable>
           </FadeInView>
+
+          {getCancelInfo(subscription.iconSlug) ? (
+            <FadeInView className="rounded-2xl border border-border bg-surface p-4">
+              <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("subscriptions.detail.howToCancel", "How to Cancel")}</Text>
+              <Text className="mt-2 text-sm leading-5 text-subtle">{t("subscriptions.detail.cancelHint", "Open the cancellation page for {{name}} and follow the instructions there.", { name: subscription.name })}</Text>
+              <AnimatedPressable
+                className="mt-3 flex-row items-center gap-2 rounded-xl border border-border bg-bg px-4 py-3"
+                onPress={() => Linking.openURL(getCancelInfo(subscription.iconSlug)!.cancelUrl)}
+              >
+                <Feather name="external-link" size={15} color="#a3a3a3" />
+                <Text className="text-sm font-semibold text-ink">{t("subscriptions.detail.openCancelPage", "Open cancellation page")}</Text>
+              </AnimatedPressable>
+            </FadeInView>
+          ) : null}
 
         </View>
       </ScrollView>

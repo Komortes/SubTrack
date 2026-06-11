@@ -6,7 +6,7 @@ export type Subscription = {
   id: string;
   name: string;
   amount: number;
-  currency: "CZK" | "EUR" | "USD";
+  currency: "CZK" | "EUR" | "USD" | "GBP" | "CHF" | "PLN" | "HUF" | "JPY" | "CAD" | "AUD" | "SEK" | "NOK" | "DKK";
   billingPeriod: BillingPeriod;
   customPeriodDays?: number;
   renewalDate: string;

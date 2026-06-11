@@ -59,7 +59,7 @@ export default function HomeScreen() {
   }, [isOfflineMode, refreshPendingSyncCount, syncFromServer]);
 
   return (
-    <ScreenTransition className="flex-1 bg-bg">
+    <ScreenTransition className="flex-1 bg-bg" replayOnFocus={false}>
       <ScrollView
         contentContainerClassName="gap-6 px-5 pb-40 pt-16"
         refreshControl={

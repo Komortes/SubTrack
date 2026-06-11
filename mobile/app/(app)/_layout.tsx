@@ -43,11 +43,15 @@ export default function AppLayout() {
 
   return (
     <>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#0a0a0a" } }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "transparent" } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="paywall"
           options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }}
+        />
+        <Stack.Screen
+          name="wrapped"
+          options={{ presentation: "fullScreenModal", animation: "slide_from_bottom", headerShown: false }}
         />
       </Stack>
       <LockScreen visible={locked} onUnlock={() => setLocked(false)} />

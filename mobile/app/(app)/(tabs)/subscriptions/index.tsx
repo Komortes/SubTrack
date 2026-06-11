@@ -1,23 +1,29 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, RefreshControl, SectionList, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, LayoutChangeEvent, RefreshControl, SectionList, ScrollView, Text, TextInput, View } from "react-native";
 import Animated, {
   interpolate,
   interpolateColor,
+  ReduceMotion,
   useAnimatedStyle,
+  useSharedValue,
+  withTiming,
   type SharedValue,
 } from "react-native-reanimated";
+import { DURATION, EASING } from "@/utils/animations";
 import ReanimatedSwipeable, { SwipeDirection, type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { EmptyState } from "@/components/EmptyState";
+import { FadeInView } from "@/components/FadeInView";
 import { RefreshIndicator } from "@/components/RefreshIndicator";
 import { ScreenTransition } from "@/components/ScreenTransition";
 import { SubscriptionCard } from "@/components/SubscriptionCard";
 import { haptic } from "@/lib/haptics";
 import { daysUntil, normalizeMonthlyAmount } from "@/lib/subscriptionMath";
 import { Subscription, SubscriptionCategory } from "@/lib/types";
+import { useIsDark } from "@/hooks/useIsDark";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
 import { useProStatus } from "@/hooks/useProStatus";
 import { useAuthStore } from "@/store/authStore";
@@ -194,6 +200,23 @@ export default function SubscriptionsScreen() {
   const [groupMode, setGroupMode] = useState<GroupMode>("none");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+
+  // sliding pill for primary filter tabs
+  const pillX = useSharedValue(0);
+  const [tabWidth, setTabWidth] = useState(0);
+  const pillStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: pillX.value }],
+  }));
+  const handleTabsLayout = (e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width / 3;
+    setTabWidth(w);
+    const idx = primaryFilters.findIndex((p) => p.value === filter);
+    pillX.value = (idx >= 0 ? idx : 0) * w;
+  };
+
+  // advanced filters animated opacity/height
+  const filterPanelOpacity = useSharedValue(0);
+  const filterPanelStyle = useAnimatedStyle(() => ({ opacity: filterPanelOpacity.value }));
   const { subscriptions: activeSubscriptions, archivedSubscriptions } = useSubscriptions();
   const subscriptions = showArchived ? archivedSubscriptions : activeSubscriptions;
   const isOfflineMode = useAuthStore((state) => state.isOfflineMode);
@@ -202,6 +225,8 @@ export default function SubscriptionsScreen() {
   const updateSubscription = useSubscriptionStore((state) => state.updateSubscription);
   const deleteSubscription = useSubscriptionStore((state) => state.deleteSubscription);
   const isPro = useProStatus();
+  const isDark = useIsDark();
+  const pillColor = isDark ? "#fafafa" : "#0a0a0a";
   const allSubscriptions = useSubscriptionStore((s) => s.subscriptions);
   const nonArchivedCount = allSubscriptions.filter((s) => !s.isArchived).length;
 
@@ -244,6 +269,20 @@ export default function SubscriptionsScreen() {
   const categoryFilters = filters.filter((item) => !["all", "active", "paused"].includes(String(item.value)));
   const primaryFilters = filters.filter((item) => ["all", "active", "paused"].includes(String(item.value)));
 
+  function setFilterAndAnimatePill(value: FilterValue) {
+    setFilter(value);
+    const idx = primaryFilters.findIndex((p) => p.value === value);
+    if (idx >= 0 && tabWidth > 0) {
+      pillX.value = withTiming(idx * tabWidth, { duration: DURATION.fast, easing: EASING.out, reduceMotion: ReduceMotion.System });
+    }
+  }
+
+  function toggleAdvancedFilters() {
+    const next = !showAdvancedFilters;
+    setShowAdvancedFilters(next);
+    filterPanelOpacity.value = withTiming(next ? 1 : 0, { duration: DURATION.fast, reduceMotion: ReduceMotion.System });
+  }
+
   function chooseSort() {
     Alert.alert(t("subscriptions.sort.renewalDate"), undefined, [
       ...sortOptions.map((item) => ({
@@ -283,17 +322,19 @@ export default function SubscriptionsScreen() {
     ]);
   }
 
-  function renderItem({ item }: { item: Subscription }) {
+  function renderItem({ item, index }: { item: Subscription; index: number }) {
     return (
-      <SubscriptionRow
-        item={item}
-        compact={compact}
-        onDelete={confirmDelete}
-        onToggle={(sub) => {
-          updateSubscription(sub.id, { isActive: !sub.isActive }).catch(() => undefined);
-        }}
-        onPress={() => router.push(`/(app)/(tabs)/subscriptions/${item.id}`)}
-      />
+      <FadeInView index={index}>
+        <SubscriptionRow
+          item={item}
+          compact={compact}
+          onDelete={confirmDelete}
+          onToggle={(sub) => {
+            updateSubscription(sub.id, { isActive: !sub.isActive }).catch(() => undefined);
+          }}
+          onPress={() => router.push(`/(app)/(tabs)/subscriptions/${item.id}`)}
+        />
+      </FadeInView>
     );
   }
 
@@ -323,7 +364,7 @@ export default function SubscriptionsScreen() {
           </AnimatedPressable>
           <AnimatedPressable
             className="h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface"
-            onPress={() => setShowAdvancedFilters((value) => !value)}
+            onPress={toggleAdvancedFilters}
           >
             <Feather name="sliders" size={15} color={showAdvancedFilters || filter !== "all" || groupMode !== "none" ? "#fafafa" : "#a3a3a3"} />
           </AnimatedPressable>
@@ -349,12 +390,19 @@ export default function SubscriptionsScreen() {
         ) : null}
       </View>
 
-      <View className="mt-3 flex-row rounded-2xl border border-border bg-surface p-1">
+      <View className="mt-3 flex-row rounded-2xl border border-border bg-surface p-1" onLayout={handleTabsLayout}>
+        {tabWidth > 0 && (
+          <Animated.View
+            style={[pillStyle, { position: "absolute", left: 4, top: 4, bottom: 4, width: tabWidth, borderRadius: 12, backgroundColor: pillColor }]}
+            pointerEvents="none"
+          />
+        )}
         {primaryFilters.map((item) => (
           <AnimatedPressable
             key={item.value}
-            className={`h-10 flex-1 items-center justify-center rounded-xl ${filter === item.value ? "bg-ink" : ""}`}
-            onPress={() => setFilter(item.value)}
+            className="h-10 flex-1 items-center justify-center rounded-xl"
+            hapticFeedback={false}
+            onPress={() => setFilterAndAnimatePill(item.value)}
           >
             <Text className={`text-sm font-semibold ${filter === item.value ? "text-bg" : "text-muted"}`}>
               {item.label}
@@ -364,7 +412,7 @@ export default function SubscriptionsScreen() {
       </View>
 
       {showAdvancedFilters ? (
-        <View className="mt-3 gap-3 rounded-2xl border border-border bg-surface p-3">
+        <Animated.View className="mt-3 gap-3 rounded-2xl border border-border bg-surface p-3" style={filterPanelStyle}>
           <View className="flex-row gap-2">
             <AnimatedPressable
               className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-border bg-bg px-3 py-2.5"
@@ -398,7 +446,7 @@ export default function SubscriptionsScreen() {
               ))}
             </View>
           </ScrollView>
-        </View>
+        </Animated.View>
       ) : null}
 
       {filter !== "all" || groupMode !== "none" ? (
@@ -441,7 +489,7 @@ export default function SubscriptionsScreen() {
   );
 
   return (
-    <ScreenTransition className="flex-1 bg-bg">
+    <ScreenTransition className="flex-1 bg-bg" replayOnFocus={false}>
       <SectionList
         className="flex-1 bg-bg"
         contentContainerClassName="px-5 pb-36 pt-16"
@@ -471,13 +519,15 @@ export default function SubscriptionsScreen() {
         ListEmptyComponent={emptyComponent}
       />
 
-      <AnimatedPressable
-        className="absolute bottom-28 right-5 h-16 w-16 items-center justify-center rounded-full bg-accent"
-        scaleTarget={0.92}
-        onPress={handleAddPress}
-      >
-        <Text className="text-3xl font-light text-bg">+</Text>
-      </AnimatedPressable>
+      <FadeInView index={0} replayOnFocus style={{ position: "absolute", bottom: 112, right: 20 }}>
+        <AnimatedPressable
+          className="h-16 w-16 items-center justify-center rounded-full bg-accent"
+          scaleTarget={0.92}
+          onPress={handleAddPress}
+        >
+          <Text className="text-3xl font-light text-bg">+</Text>
+        </AnimatedPressable>
+      </FadeInView>
     </ScreenTransition>
   );
 }
