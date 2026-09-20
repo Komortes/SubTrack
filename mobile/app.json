@@ -15,7 +15,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "app.subtrack.mobile",
       "entitlements": {
-        "com.apple.security.application-groups": ["group.app.subtrack.mobile"]
+        "com.apple.security.application-groups": [
+          "group.app.subtrack.mobile"
+        ]
       }
     },
     "android": {
@@ -27,7 +29,8 @@
       "expo-notifications",
       "expo-web-browser",
       "expo-local-authentication",
-"@bacons/apple-targets"
+      "@bacons/apple-targets",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": false

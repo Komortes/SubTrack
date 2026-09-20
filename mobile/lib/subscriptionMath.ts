@@ -1,4 +1,5 @@
 import { Subscription } from "./types";
+import { toLocalDate, toLocalIsoDate } from "./dateFormat";
 
 export function normalizeMonthlyAmount(subscription: Subscription): number {
   if (!subscription.isActive) {
@@ -11,7 +12,7 @@ export function normalizeMonthlyAmount(subscription: Subscription): number {
     case "yearly":
       return subscription.amount / 12;
     case "custom": {
-      const days = subscription.customPeriodDays ?? 30;
+      const days = Math.max(1, subscription.customPeriodDays ?? 30);
       return subscription.amount * (30 / days);
     }
     case "monthly":
@@ -20,19 +21,22 @@ export function normalizeMonthlyAmount(subscription: Subscription): number {
   }
 }
 
+const moneyFormatters = new Map<string, Intl.NumberFormat>();
+
 export function formatMoney(amount: number, currency = "CZK"): string {
-  return new Intl.NumberFormat("cs-CZ", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0
-  }).format(amount);
+  let formatter = moneyFormatters.get(currency);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat("cs-CZ", { style: "currency", currency, minimumFractionDigits: 0 });
+    moneyFormatters.set(currency, formatter);
+  }
+  return formatter.format(amount);
 }
 
-export function daysUntil(date: string): number {
-  const today = new Date();
-  const target = new Date(`${date}T00:00:00`);
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  return Math.ceil((target.getTime() - start.getTime()) / 86_400_000);
+export function daysUntil(date: string, today = new Date()): number {
+  const target = toLocalDate(date);
+  const targetDay = Date.UTC(target.getFullYear(), target.getMonth(), target.getDate());
+  const currentDay = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((targetDay - currentDay) / 86_400_000);
 }
 
 export function monthProgress(): number {
@@ -42,23 +46,31 @@ export function monthProgress(): number {
 }
 
 export function nextRenewalDate(subscription: Pick<Subscription, "billingPeriod" | "customPeriodDays" | "renewalDate">): string {
-  const value = new Date(`${subscription.renewalDate}T00:00:00`);
+  const value = toLocalDate(subscription.renewalDate);
 
   switch (subscription.billingPeriod) {
     case "weekly":
       value.setDate(value.getDate() + 7);
       break;
     case "yearly":
-      value.setFullYear(value.getFullYear() + 1);
+      addMonthsClamped(value, 12);
       break;
     case "custom":
-      value.setDate(value.getDate() + (subscription.customPeriodDays ?? 30));
+      value.setDate(value.getDate() + Math.max(1, subscription.customPeriodDays ?? 30));
       break;
     case "monthly":
     default:
-      value.setMonth(value.getMonth() + 1);
+      addMonthsClamped(value, 1);
       break;
   }
 
-  return value.toISOString().slice(0, 10);
+  return toLocalIsoDate(value);
+}
+
+function addMonthsClamped(value: Date, months: number): void {
+  const day = value.getDate();
+  value.setDate(1);
+  value.setMonth(value.getMonth() + months);
+  const lastDay = new Date(value.getFullYear(), value.getMonth() + 1, 0).getDate();
+  value.setDate(Math.min(day, lastDay));
 }

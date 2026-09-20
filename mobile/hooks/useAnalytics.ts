@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import * as api from "@/lib/api";
+import { convertMonthlyHistory } from "@/lib/analyticsHistory";
 import i18next from "@/lib/i18n";
 import { normalizeMonthlyAmount } from "@/lib/subscriptionMath";
 import { useAuthStore } from "@/store/authStore";
@@ -9,18 +10,25 @@ import { useSubscriptionStore } from "@/store/subscriptionStore";
 
 export function useAnalytics() {
   const subscriptions = useSubscriptionStore((state) => state.subscriptions);
+  const lastSyncedAt = useSubscriptionStore((state) => state.lastSyncedAt);
+  const isSyncing = useSubscriptionStore((state) => state.isSyncing);
+  const pendingSyncCount = useSubscriptionStore((state) => state.pendingSyncCount);
+  const subscriptionSyncError = useSubscriptionStore((state) => state.syncError);
   const isOfflineMode = useAuthStore((state) => state.isOfflineMode);
+  const userId = useAuthStore((state) => state.userId);
   const primaryCurrency = useSettingsStore((state) => state.primaryCurrency);
   const rates = useCurrencyStore((state) => state.rates);
   const fetchRates = useCurrencyStore((state) => state.fetchRates);
-  const [remoteSummary, setRemoteSummary] = useState<api.AnalyticsSummary | null>(null);
-  const [monthlyHistory, setMonthlyHistory] = useState<api.MonthlyAnalyticsPoint[]>([]);
-  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [remoteHistory, setRemoteHistory] = useState<{
+    userId: number | null;
+    points: api.MonthlyAnalyticsPoint[];
+    error: string | null;
+  }>({ userId: null, points: [], error: null });
 
   // Fetch exchange rates on mount (respects 24h TTL internally)
   useEffect(() => {
-    fetchRates().catch(() => undefined);
-  }, [fetchRates]);
+    if (!isOfflineMode) fetchRates().catch(() => undefined);
+  }, [fetchRates, isOfflineMode]);
 
   const localAnalytics = useMemo(() => {
     const active = subscriptions.filter((item) => item.isActive && !item.isArchived);
@@ -48,39 +56,47 @@ export function useAnalytics() {
   }, [subscriptions, primaryCurrency, rates]);
 
   useEffect(() => {
-    if (isOfflineMode) {
-      setRemoteSummary(null);
-      setMonthlyHistory([]);
-      setAnalyticsError(null);
+    if (isOfflineMode || userId === null) {
+      setRemoteHistory({ userId: null, points: [], error: null });
       return;
     }
+    if (!lastSyncedAt || isSyncing || pendingSyncCount > 0 || subscriptionSyncError) return;
 
     let cancelled = false;
+    const subscriptionsAtRequest = useSubscriptionStore.getState().subscriptions;
+    const canAcceptResponse = () => {
+      const auth = useAuthStore.getState();
+      const current = useSubscriptionStore.getState();
+      return !cancelled && !auth.isOfflineMode && auth.userId === userId
+        && current.lastSyncedAt === lastSyncedAt && !current.isSyncing && current.pendingSyncCount === 0
+        && !current.syncError && current.subscriptions === subscriptionsAtRequest;
+    };
 
-    Promise.all([api.fetchAnalyticsSummary(), api.fetchMonthlyAnalytics()])
-      .then(([summary, monthly]) => {
-        if (!cancelled) {
-          setRemoteSummary(summary);
-          setMonthlyHistory(monthly);
-          setAnalyticsError(null);
+    api.fetchMonthlyAnalytics()
+      .then((points) => {
+        if (canAcceptResponse()) {
+          setRemoteHistory({ userId, points, error: null });
         }
       })
       .catch((error) => {
-        if (!cancelled) {
-          setAnalyticsError(error instanceof Error ? error.message : i18next.t("common.error"));
+        if (canAcceptResponse()) {
+          setRemoteHistory({ userId, points: [], error: error instanceof Error ? error.message : i18next.t("common.error") });
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [isOfflineMode, subscriptions.length]);
+  }, [isOfflineMode, userId, lastSyncedAt, isSyncing, pendingSyncCount, subscriptionSyncError]);
 
-  // Remote summary from server is always in the server's base currency — use local analytics instead
-  // since only local analytics can do per-subscription currency conversion properly
+  const monthlyHistory = useMemo(() => {
+    if (isOfflineMode || remoteHistory.userId !== userId) return [];
+    return convertMonthlyHistory(remoteHistory.points, primaryCurrency, rates);
+  }, [isOfflineMode, remoteHistory, userId, primaryCurrency, rates]);
+
   return {
     ...localAnalytics,
     monthlyHistory,
-    analyticsError
+    analyticsError: !isOfflineMode && remoteHistory.userId === userId ? remoteHistory.error : null
   };
 }

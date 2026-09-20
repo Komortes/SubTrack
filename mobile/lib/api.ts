@@ -30,6 +30,7 @@ export type MonthlyAnalyticsPoint = {
   key: string;
   label: string;
   total: number;
+  totalsByCurrency?: Record<string, number>;
 };
 
 type ApiAnalyticsSummary = {
@@ -40,11 +41,12 @@ type ApiAnalyticsSummary = {
 };
 
 type ApiMonthlyAnalytics = {
-  months: Array<{
+  months: {
     key: string;
     label: string;
     total: number;
-  }>;
+    totals_by_currency?: Record<string, number | string>;
+  }[];
 };
 
 export type UserSettings = {
@@ -106,11 +108,26 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+export class ApiRequestCancelledError extends Error {
+  constructor() {
+    super("Request cancelled because its session changed.");
+    this.name = "ApiRequestCancelledError";
+  }
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+  isCurrent?: () => boolean,
+): Promise<T> {
   const token = await SecureStore.getItemAsync(TOKEN_KEY);
+  // A queued request can outlive an account handoff while reading credentials.
+  if (isCurrent && !isCurrent()) throw new ApiRequestCancelledError();
 
   let lastNetworkError: unknown;
   for (const baseUrl of getApiBaseUrls()) {
+    // Recheck before fallback attempts, which may follow a delayed failure.
+    if (isCurrent && !isCurrent()) throw new ApiRequestCancelledError();
     try {
       const response = await fetchWithTimeout(`${baseUrl}${path}`, {
         ...options,
@@ -264,7 +281,10 @@ export async function fetchMonthlyAnalytics(): Promise<MonthlyAnalyticsPoint[]> 
   return analytics.months.map((item) => ({
     key: item.key,
     label: item.label,
-    total: Number(item.total)
+    total: Number(item.total),
+    totalsByCurrency: item.totals_by_currency
+      ? Object.fromEntries(Object.entries(item.totals_by_currency).map(([currency, total]) => [currency, Number(total)]))
+      : undefined
   }));
 }
 
@@ -375,12 +395,12 @@ export function toApiSubscription(subscription: Partial<SubscriptionPayload>, op
     is_active: subscription.isActive,
     is_trial: subscription.isTrial,
     is_archived: subscription.isArchived,
-    cancel_reminder_days: subscription.cancelReminderDays ?? null
+    cancel_reminder_days: subscription.cancelReminderDays
   };
 }
 
 function isUuid(value: unknown): value is string {
-  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function fromApiSettings(settings: ApiUserSettings): UserSettings {
