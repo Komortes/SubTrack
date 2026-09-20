@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Models\Subscription;
-use App\Models\User;
 use App\Jobs\CheckUpcomingRenewalsJob;
 use App\Jobs\SendPushNotificationJob;
+use App\Models\Subscription;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -154,6 +154,208 @@ class SubscriptionApiTest extends TestCase
         $this->assertDatabaseMissing('subscriptions', ['id' => $id]);
     }
 
+    public function test_free_user_is_blocked_from_creating_more_than_the_free_limit(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        for ($i = 0; $i < 5; $i++) {
+            Subscription::query()->create($this->modelPayload($user, ['name' => "Sub {$i}"]));
+        }
+
+        $this->postJson('/api/subscriptions', $this->payload(['name' => 'One Too Many']))
+            ->assertStatus(402);
+
+        $this->assertDatabaseMissing('subscriptions', ['name' => 'One Too Many']);
+    }
+
+    public function test_replayed_payment_id_renews_a_subscription_only_once(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $subscription = Subscription::query()->create($this->modelPayload($user, ['renewal_date' => '2026-05-10']));
+        $paymentId = '018f9a5d-8d71-77d2-8f7b-628e71dfb3d9';
+
+        $this->postJson("/api/subscriptions/{$subscription->id}/renew", ['payment_id' => $paymentId])
+            ->assertOk()
+            ->assertJsonPath('renewal_date', '2026-06-10T00:00:00.000000Z')
+            ->assertJsonPath('payment_records.0.id', $paymentId);
+        $this->postJson("/api/subscriptions/{$subscription->id}/renew", ['payment_id' => $paymentId])
+            ->assertOk()
+            ->assertJsonPath('renewal_date', '2026-06-10T00:00:00.000000Z');
+
+        $this->assertDatabaseCount('payment_records', 1);
+    }
+
+    public function test_distinct_payment_ids_renew_twice_and_retrying_an_older_id_does_not_renew_again(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $subscription = Subscription::query()->create($this->modelPayload($user, ['renewal_date' => '2026-05-10']));
+        $firstId = '018f9a5d-8d71-77d2-8f7b-628e71dfb3d9';
+        $secondId = '018f9a5d-8d71-77d2-8f7b-628e71dfb3da';
+
+        $this->postJson("/api/subscriptions/{$subscription->id}/renew", ['payment_id' => $firstId])->assertOk();
+        $this->postJson("/api/subscriptions/{$subscription->id}/renew", ['payment_id' => $secondId])
+            ->assertOk()
+            ->assertJsonPath('renewal_date', '2026-07-10T00:00:00.000000Z');
+        $this->postJson("/api/subscriptions/{$subscription->id}/renew", ['payment_id' => $firstId])
+            ->assertOk()
+            ->assertJsonPath('renewal_date', '2026-07-10T00:00:00.000000Z');
+
+        $this->assertDatabaseCount('payment_records', 2);
+    }
+
+    public function test_a_payment_id_cannot_be_reused_for_another_subscription(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $otherSubscription = Subscription::query()->create($this->modelPayload(User::factory()->create()));
+        $payment = $otherSubscription->paymentRecords()->create([
+            'user_id' => $otherSubscription->user_id,
+            'paid_at' => now(),
+            'amount' => $otherSubscription->amount,
+            'currency' => $otherSubscription->currency,
+        ]);
+        $subscription = Subscription::query()->create($this->modelPayload($user));
+
+        $this->postJson("/api/subscriptions/{$subscription->id}/renew", ['payment_id' => $payment->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('payment_id');
+        $this->assertDatabaseCount('payment_records', 1);
+        $this->assertSame('2026-05-04', $subscription->fresh()->renewal_date->toDateString());
+    }
+
+    public function test_renewal_rejects_invalid_payment_ids(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $subscription = Subscription::query()->create($this->modelPayload($user));
+
+        $this->postJson("/api/subscriptions/{$subscription->id}/renew", ['payment_id' => 'not-a-uuid'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('payment_id');
+        $this->assertDatabaseCount('payment_records', 0);
+    }
+
+    public function test_subscription_amount_and_custom_period_must_fit_supported_limits(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/subscriptions', $this->payload([
+            'amount' => 10000000000,
+            'billing_period' => 'custom',
+            'custom_period_days' => 3651,
+        ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['amount', 'custom_period_days']);
+        $this->postJson('/api/subscriptions', $this->payload(['amount' => '1e309']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('amount');
+    }
+
+    public function test_pro_user_is_not_blocked_by_the_free_limit(): void
+    {
+        $user = User::factory()->create(['is_pro' => true]);
+        Sanctum::actingAs($user);
+
+        for ($i = 0; $i < 5; $i++) {
+            Subscription::query()->create($this->modelPayload($user, ['name' => "Sub {$i}"]));
+        }
+
+        $this->postJson('/api/subscriptions', $this->payload(['name' => 'Sixth Subscription']))
+            ->assertCreated();
+    }
+
+    public function test_creating_a_subscription_with_the_same_client_id_is_idempotent(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $subscription = Subscription::query()->create($this->modelPayload($user));
+
+        for ($i = 0; $i < 4; $i++) {
+            Subscription::query()->create($this->modelPayload($user));
+        }
+
+        $this->postJson('/api/subscriptions', $this->payload([
+            'id' => $subscription->id,
+            'name' => 'Retry must not overwrite',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('id', $subscription->id)
+            ->assertJsonPath('name', $subscription->name);
+
+        $this->assertDatabaseCount('subscriptions', 5);
+    }
+
+    public function test_cannot_create_a_subscription_using_another_users_client_id(): void
+    {
+        $otherUser = User::factory()->create();
+        $subscription = Subscription::query()->create($this->modelPayload($otherUser));
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/subscriptions', $this->payload(['id' => $subscription->id]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('id');
+
+        $this->assertDatabaseCount('subscriptions', 1);
+    }
+
+    public function test_subscription_id_cannot_be_changed_during_update(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $subscription = Subscription::query()->create($this->modelPayload($user));
+
+        $this->putJson("/api/subscriptions/{$subscription->id}", [
+            'id' => '018f9a5d-8d71-77d2-8f7b-628e71dfb3d9',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('id');
+
+        $this->assertDatabaseHas('subscriptions', ['id' => $subscription->id]);
+        $this->putJson("/api/subscriptions/{$subscription->id}", ['id' => $subscription->id])
+            ->assertOk();
+    }
+
+    public function test_free_user_can_create_archived_subscriptions_at_the_limit(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        for ($i = 0; $i < 5; $i++) {
+            Subscription::query()->create($this->modelPayload($user));
+        }
+
+        $this->postJson('/api/subscriptions', $this->payload(['is_archived' => true]))
+            ->assertCreated()
+            ->assertJsonPath('is_archived', true);
+    }
+
+    public function test_free_user_cannot_restore_an_archive_until_a_slot_is_available(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        for ($i = 0; $i < 5; $i++) {
+            Subscription::query()->create($this->modelPayload($user));
+        }
+
+        $archived = Subscription::query()->create($this->modelPayload($user, ['is_archived' => true]));
+        $this->putJson("/api/subscriptions/{$archived->id}", ['is_archived' => false])
+            ->assertStatus(402);
+        $this->assertTrue($archived->fresh()->is_archived);
+
+        $active = $user->subscriptions()->where('is_archived', false)->first();
+        $this->putJson("/api/subscriptions/{$active->id}", ['name' => 'Edited at limit'])
+            ->assertOk();
+        $this->putJson("/api/subscriptions/{$active->id}", ['is_archived' => true])
+            ->assertOk();
+        $this->putJson("/api/subscriptions/{$archived->id}", ['is_archived' => false])
+            ->assertOk()
+            ->assertJsonPath('is_archived', false);
+    }
+
     public function test_analytics_summary_normalizes_subscription_periods(): void
     {
         $user = User::factory()->create();
@@ -180,6 +382,38 @@ class SubscriptionApiTest extends TestCase
             ->assertJsonPath('active_count', 2)
             ->assertJsonPath('by_category.work', 100)
             ->assertJsonPath('by_category.cloud', 100);
+    }
+
+    public function test_subscription_and_settings_accept_supported_mobile_currencies(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        foreach (['GBP', 'JPY'] as $currency) {
+            $this->postJson('/api/subscriptions', $this->payload(['currency' => $currency]))
+                ->assertCreated()
+                ->assertJsonPath('currency', $currency);
+            $this->putJson('/api/settings', ['primary_currency' => $currency])
+                ->assertOk()
+                ->assertJsonPath('primary_currency', $currency);
+        }
+    }
+
+    public function test_analytics_excludes_archived_subscriptions_even_when_still_active(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        Subscription::query()->create($this->modelPayload($user, [
+            'amount' => 100,
+            'is_active' => true,
+            'is_archived' => true,
+        ]));
+
+        $this->getJson('/api/analytics/summary')
+            ->assertOk()
+            ->assertJsonPath('monthly_total', 0)
+            ->assertJsonPath('yearly_total', 0)
+            ->assertJsonPath('active_count', 0)
+            ->assertJsonPath('by_category', []);
     }
 
     public function test_user_can_read_and_update_settings(): void
@@ -250,6 +484,29 @@ class SubscriptionApiTest extends TestCase
         CarbonImmutable::setTestNow();
     }
 
+    public function test_monthly_analytics_keeps_currency_subtotals_separate(): void
+    {
+        $this->travelTo(now()->setDate(2026, 5, 7)->setTime(12, 0));
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $subscription = Subscription::query()->create($this->modelPayload($user));
+        foreach (['CZK' => 100, 'USD' => 10] as $currency => $amount) {
+            $subscription->paymentRecords()->create([
+                'user_id' => $user->id,
+                'paid_at' => '2026-05-01 10:00:00',
+                'amount' => $amount,
+                'currency' => $currency,
+            ]);
+        }
+
+        $this->getJson('/api/analytics/monthly')
+            ->assertOk()
+            ->assertJsonPath('months.11.key', '2026-05')
+            ->assertJsonPath('months.11.total', 110)
+            ->assertJsonPath('months.11.totals_by_currency.CZK', 100)
+            ->assertJsonPath('months.11.totals_by_currency.USD', 10);
+    }
+
     public function test_notification_checker_respects_settings_time_and_dedupe(): void
     {
         Queue::fake();
@@ -285,7 +542,7 @@ class SubscriptionApiTest extends TestCase
             'sent_at' => now(),
         ]);
 
-        (new CheckUpcomingRenewalsJob())->handle();
+        (new CheckUpcomingRenewalsJob)->handle();
 
         Queue::assertPushed(SendPushNotificationJob::class, 1);
         Queue::assertPushed(SendPushNotificationJob::class, function (SendPushNotificationJob $job) use ($threeDays) {
@@ -293,7 +550,7 @@ class SubscriptionApiTest extends TestCase
         });
 
         CarbonImmutable::setTestNow('2026-05-07 08:59:00');
-        (new CheckUpcomingRenewalsJob())->handle();
+        (new CheckUpcomingRenewalsJob)->handle();
         Queue::assertPushed(SendPushNotificationJob::class, 1);
 
         CarbonImmutable::setTestNow();

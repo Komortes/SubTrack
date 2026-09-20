@@ -29,6 +29,13 @@ return [
         ))),
     ],
 
+    'revenuecat' => [
+        // Value configured as the "Authorization header" in the RevenueCat
+        // dashboard webhook settings. Webhook requests are rejected unless this
+        // is set and matches exactly.
+        'webhook_secret' => env('REVENUECAT_WEBHOOK_AUTHORIZATION'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

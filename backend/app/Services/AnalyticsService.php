@@ -7,13 +7,11 @@ use Illuminate\Support\Collection;
 
 class AnalyticsService
 {
-    public function __construct(private readonly SubscriptionService $subscriptions)
-    {
-    }
+    public function __construct(private readonly SubscriptionService $subscriptions) {}
 
     public function summary(Collection $subscriptions): array
     {
-        $active = $subscriptions->where('is_active', true);
+        $active = $subscriptions->where('is_active', true)->where('is_archived', false);
         $monthlyTotal = $active->sum(fn (Subscription $subscription) => $this->subscriptions->monthlyAmount($subscription));
 
         return [
@@ -27,4 +25,3 @@ class AnalyticsService
         ];
     }
 }
-

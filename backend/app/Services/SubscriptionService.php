@@ -7,27 +7,39 @@ use Carbon\CarbonImmutable;
 
 class SubscriptionService
 {
-    public function renew(Subscription $subscription): Subscription
+    public function renew(Subscription $subscription, ?string $paymentId = null): Subscription
     {
-        $date = CarbonImmutable::parse($subscription->renewal_date);
+        return $subscription->getConnection()->transaction(function () use ($subscription, $paymentId) {
+            $subscription = $subscription->newQuery()->lockForUpdate()->findOrFail($subscription->id);
 
-        $subscription->paymentRecords()->create([
-            'user_id' => $subscription->user_id,
-            'paid_at' => now(),
-            'amount' => $subscription->amount,
-            'currency' => $subscription->currency,
-        ]);
+            if ($paymentId !== null && $subscription->paymentRecords()->whereKey($paymentId)->exists()) {
+                return $subscription->load(['paymentRecords' => fn ($query) => $query->limit(5)]);
+            }
 
-        $subscription->renewal_date = match ($subscription->billing_period) {
-            'weekly' => $date->addWeek(),
-            'yearly' => $date->addYear(),
-            'custom' => $date->addDays((int) ($subscription->custom_period_days ?: 30)),
-            default => $date->addMonthNoOverflow(),
-        };
+            $date = CarbonImmutable::parse($subscription->renewal_date);
 
-        $subscription->save();
+            $payment = $subscription->paymentRecords()->make([
+                'user_id' => $subscription->user_id,
+                'paid_at' => now(),
+                'amount' => $subscription->amount,
+                'currency' => $subscription->currency,
+            ]);
+            if ($paymentId !== null) {
+                $payment->id = $paymentId;
+            }
+            $payment->save();
 
-        return $subscription->load(['paymentRecords' => fn ($query) => $query->limit(5)]);
+            $subscription->renewal_date = match ($subscription->billing_period) {
+                'weekly' => $date->addWeek(),
+                'yearly' => $date->addYearNoOverflow(),
+                'custom' => $date->addDays((int) ($subscription->custom_period_days ?: 30)),
+                default => $date->addMonthNoOverflow(),
+            };
+
+            $subscription->save();
+
+            return $subscription->load(['paymentRecords' => fn ($query) => $query->limit(5)]);
+        });
     }
 
     public function monthlyAmount(Subscription $subscription): float
@@ -39,7 +51,7 @@ class SubscriptionService
         return match ($subscription->billing_period) {
             'weekly' => (float) $subscription->amount * 4.345,
             'yearly' => (float) $subscription->amount / 12,
-            'custom' => (float) $subscription->amount * (30 / max(1, (int) $subscription->custom_period_days)),
+            'custom' => (float) $subscription->amount * (30 / max(1, (int) ($subscription->custom_period_days ?: 30))),
             default => (float) $subscription->amount,
         };
     }

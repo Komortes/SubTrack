@@ -19,7 +19,7 @@ class UserSettingsController extends Controller
             'notify_one_day' => ['sometimes', 'boolean'],
             'notify_same_day' => ['sometimes', 'boolean'],
             'notification_time' => ['sometimes', 'date_format:H:i'],
-            'primary_currency' => ['sometimes', 'in:CZK,EUR,USD'],
+            'primary_currency' => ['sometimes', 'in:CZK,EUR,USD,GBP,CHF,PLN,HUF,JPY,CAD,AUD,SEK,NOK,DKK'],
             'date_format' => ['sometimes', 'in:DD.MM.YYYY,MM/DD/YYYY,YYYY-MM-DD'],
             'theme' => ['sometimes', 'in:light,dark,system'],
         ]);

@@ -27,11 +27,16 @@ class AnalyticsController extends Controller
                 ->map(function (int $offset) use ($records) {
                     $month = now()->startOfMonth()->subMonths($offset);
                     $key = $month->format('Y-m');
+                    $monthRecords = $records->get($key, collect());
 
                     return [
                         'key' => $key,
                         'label' => $month->isoFormat('MMM'),
-                        'total' => round((float) ($records->get($key)?->sum('amount') ?? 0), 2),
+                        'total' => round((float) $monthRecords->sum('amount'), 2),
+                        'totals_by_currency' => (object) $monthRecords
+                            ->groupBy('currency')
+                            ->map(fn ($payments) => round((float) $payments->sum('amount'), 2))
+                            ->all(),
                     ];
                 })
                 ->values(),

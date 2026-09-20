@@ -3,13 +3,20 @@
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PushTokenController;
+use App\Http\Controllers\Api\RevenueCatWebhookController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\UserSettingsController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/social', [AuthController::class, 'social']);
+Route::middleware('throttle:auth')->group(function () {
+    Route::post('/auth/register', [AuthController::class, 'register']);
+    Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/social', [AuthController::class, 'social']);
+});
+
+// Called by RevenueCat's servers, not by the mobile app. Verified via a shared
+// secret (see config/services.php) instead of Sanctum auth.
+Route::post('/webhooks/revenuecat', [RevenueCatWebhookController::class, 'handle']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
