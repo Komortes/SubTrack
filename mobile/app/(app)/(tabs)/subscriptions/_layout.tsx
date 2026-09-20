@@ -1,12 +1,15 @@
 import { Stack } from "expo-router";
+import { useIsDark } from "@/hooks/useIsDark";
 
 export default function SubscriptionsLayout() {
+  const isDark = useIsDark();
+  const backgroundColor = isDark ? "#0a0a0a" : "#fafafa";
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: "#0a0a0a" },
-        headerTintColor: "#fafafa",
-        contentStyle: { backgroundColor: "#0a0a0a" }
+        headerStyle: { backgroundColor },
+        headerTintColor: isDark ? "#fafafa" : "#0a0a0a",
+        contentStyle: { backgroundColor }
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />

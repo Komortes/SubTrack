@@ -8,7 +8,7 @@ type Props = {
 };
 
 export function PaymentCalendar({ subscriptions }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   const today = new Date();
@@ -22,7 +22,7 @@ export function PaymentCalendar({ subscriptions }: Props) {
   // Use locale-aware short weekday names (Mon-first)
   const DAY_LABELS = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(2000, 0, 3 + i); // Jan 3 2000 is Monday
-    return d.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2);
+    return d.toLocaleDateString(i18n.language, { weekday: "short" }).slice(0, 2);
   });
 
   const byDay = new Map<number, Subscription[]>();
@@ -52,13 +52,13 @@ export function PaymentCalendar({ subscriptions }: Props) {
 
   const todayWeekIndex = weeks.findIndex((w) => w.includes(todayDate));
   const displayWeeks = expanded ? weeks : weeks.slice(todayWeekIndex, todayWeekIndex + 1);
-  const monthName = today.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const monthName = today.toLocaleDateString(i18n.language, { month: "long", year: "numeric" });
 
   return (
     <View className="rounded-3xl border border-border bg-surface p-5">
-      <Pressable onPress={() => setExpanded((v) => !v)}>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("home.paymentCalendar")} accessibilityState={{ expanded }} onPress={() => setExpanded((v) => !v)}>
         <View className="mb-4 flex-row items-center justify-between">
-          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("paywall.features.widget")}</Text>
+          <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("home.paymentCalendar")}</Text>
           <Text className="text-xs capitalize text-subtle">
             {expanded ? monthName : t("subscriptions.upcoming.title")}
           </Text>

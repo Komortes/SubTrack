@@ -4,8 +4,13 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated from "react-native-reanimated";
+import { cssInterop } from "nativewind";
 import { darkTheme, lightTheme } from "@/lib/theme";
 import { useSettingsStore } from "@/store/settingsStore";
+
+// Reanimated wrappers need an explicit className mapping on web as well as native.
+cssInterop(Animated.View, { className: "style" });
 
 function ThemedRoot({ children }: { children: React.ReactNode }) {
   const setting = useSettingsStore((state) => state.theme);

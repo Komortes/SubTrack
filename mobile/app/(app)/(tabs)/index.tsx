@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, router } from "expo-router";
+import { router } from "expo-router";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useIsDark } from "@/hooks/useIsDark";
+import { EmptyState } from "@/components/EmptyState";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { FadeInView } from "@/components/FadeInView";
 import { PaymentCalendar } from "@/components/PaymentCalendar";
@@ -11,7 +14,6 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { RefreshIndicator } from "@/components/RefreshIndicator";
 import { UpcomingList } from "@/components/UpcomingList";
 import { daysUntil } from "@/lib/subscriptionMath";
-import { haptic } from "@/lib/haptics";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
 import { useAuthStore } from "@/store/authStore";
@@ -19,31 +21,26 @@ import { useSubscriptionStore } from "@/store/subscriptionStore";
 
 export default function HomeScreen() {
   const { t } = useTranslation();
-  const { monthlyTotal, yearlyTotal, monthlyHistory } = useAnalytics();
-  const { activeSubscriptions, recentlyAdded } = useSubscriptions();
+  const { monthlyTotal, yearlyTotal } = useAnalytics();
+  const { subscriptions, activeSubscriptions, recentlyAdded } = useSubscriptions();
   const isOfflineMode = useAuthStore((state) => state.isOfflineMode);
-  const markPaid = useSubscriptionStore((state) => state.markPaid);
+  const insets = useSafeAreaInsets();
+  const isDark = useIsDark();
   const syncFromServer = useSubscriptionStore((state) => state.syncFromServer);
   const isSyncing = useSubscriptionStore((state) => state.isSyncing);
   const syncError = useSubscriptionStore((state) => state.syncError);
   const pendingSyncCount = useSubscriptionStore((state) => state.pendingSyncCount);
   const refreshPendingSyncCount = useSubscriptionStore((state) => state.refreshPendingSyncCount);
-  const today = activeSubscriptions.filter((item) => daysUntil(item.renewalDate) === 0);
+  const attention = activeSubscriptions.filter((item) => daysUntil(item.renewalDate) <= 0).sort((a, b) => a.renewalDate.localeCompare(b.renewalDate));
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Compute trend vs previous month from history (null when no data)
-  const trend: number | null = (() => {
-    if (monthlyHistory.length < 2) return null;
-    const prev = monthlyHistory[monthlyHistory.length - 2]?.total;
-    if (!prev || prev === 0) return null;
-    return ((monthlyTotal - prev) / prev) * 100;
-  })();
 
   const refresh = useCallback(async () => {
     if (isOfflineMode) return;
     setIsRefreshing(true);
     try {
       await syncFromServer();
+    } catch {
+      // The store exposes a retryable sync state; keep pull-to-refresh settled.
     } finally {
       setIsRefreshing(false);
     }
@@ -61,14 +58,15 @@ export default function HomeScreen() {
   return (
     <ScreenTransition className="flex-1 bg-bg" replayOnFocus={false}>
       <ScrollView
-        contentContainerClassName="gap-6 px-5 pb-40 pt-16"
+        contentContainerClassName="gap-6 px-5"
+        contentContainerStyle={{ paddingTop: insets.top + 20, paddingBottom: insets.bottom + 160 }}
         refreshControl={
-          <RefreshControl
+          !isOfflineMode ? <RefreshControl
             refreshing={isRefreshing}
             onRefresh={refresh}
-            tintColor="#fafafa"
+            tintColor={isDark ? "#fafafa" : "#0a0a0a"}
             progressBackgroundColor="#141414"
-          />
+          /> : undefined
         }
       >
         <View>
@@ -80,7 +78,7 @@ export default function HomeScreen() {
               <View className="flex-1 pr-3">
                 <Text className="text-sm font-semibold text-ink">{t("common.inQueue", { count: pendingSyncCount })}</Text>
                 <Text className="mt-0.5 text-xs text-muted">
-                  {isOfflineMode ? t("settings.rows.offlineModeSubtitle") : t("common.syncing")}
+                  {isOfflineMode ? t("common.savedLocally") : isSyncing ? t("common.syncing") : t("common.waitingToSync")}
                 </Text>
               </View>
               {!isOfflineMode ? (
@@ -90,32 +88,22 @@ export default function HomeScreen() {
                   onPress={() => syncFromServer().catch(() => undefined)}
                 >
                   <Text className="text-xs font-bold uppercase tracking-widest text-bg">
-                    {isSyncing ? "..." : "Sync"}
+                    {isSyncing ? t("common.syncing") : t("common.syncNow")}
                   </Text>
                 </AnimatedPressable>
               ) : null}
             </View>
           ) : null}
-          {syncError ? <Text className="mt-2 text-sm font-medium text-danger">{syncError}</Text> : null}
+          {syncError ? <Text accessibilityRole="alert" className="mt-2 text-sm font-medium text-danger">{t("home.syncError")} · {t("common.syncNeedsAttention")}</Text> : null}
         </View>
-        <SummaryCard monthlyTotal={monthlyTotal} yearlyTotal={yearlyTotal} trend={trend} />
+        {subscriptions.length === 0 ? <EmptyState icon="credit-card" title={t("home.noSubscriptions")} subtitle={t("home.emptyHint")}
+          action={{ label: t("home.addFirst"), onPress: () => router.push("/(app)/(tabs)/subscriptions/new") }} /> : <>
+        <SummaryCard monthlyTotal={monthlyTotal} yearlyTotal={yearlyTotal} />
         <PaymentCalendar subscriptions={activeSubscriptions} />
-        {today.length > 0 ? (
-          <View className="rounded-2xl border border-danger/30 bg-danger/10 p-4">
-            {today.map((item) => (
-              <View key={item.id} className="flex-row items-center gap-3">
-                <View className="h-2 w-2 rounded-full bg-danger" />
-                <View className="flex-1">
-                  <Text className="text-xs font-semibold uppercase tracking-widest text-danger">{t("home.todayRenewals")}</Text>
-                  <Text className="mt-0.5 text-sm text-subtle">{item.name} · {item.amount} {item.currency}</Text>
-                </View>
-                <AnimatedPressable className="rounded-xl border border-border bg-surface px-3 py-2" onPress={() => { haptic.success(); markPaid(item.id); }}>
-                  <Text className="text-xs font-semibold uppercase tracking-widest text-ink">{t("subscriptions.detail.markPaid")}</Text>
-                </AnimatedPressable>
-              </View>
-            ))}
-          </View>
-        ) : null}
+        {attention.length > 0 ? <View className="gap-3">
+          <Text className="text-xs font-semibold uppercase tracking-widest text-danger">{t("home.overdueRenewals")}</Text>
+          {attention.map((item) => <SubscriptionCard key={item.id} subscription={item} compact onPress={() => router.push(`/(app)/(tabs)/subscriptions/${item.id}`)} />)}
+        </View> : null}
         <View>
           <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">{t("home.upcomingRenewals")}</Text>
           <UpcomingList
@@ -123,7 +111,7 @@ export default function HomeScreen() {
             onPress={(id) => router.push(`/(app)/(tabs)/subscriptions/${id}`)}
           />
         </View>
-        <View>
+        {recentlyAdded.length > 0 ? <View>
           <Text className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">{t("home.recentlyAdded")}</Text>
           <View className="gap-3">
             {recentlyAdded.map((item, index) => (
@@ -135,13 +123,13 @@ export default function HomeScreen() {
               </FadeInView>
             ))}
           </View>
-        </View>
+        </View> : null}
+        </>}
       </ScrollView>
-      <Link href="/(app)/(tabs)/subscriptions/new" asChild>
-        <AnimatedPressable className="absolute bottom-28 right-5 h-16 w-16 items-center justify-center rounded-full bg-accent" scaleTarget={0.92}>
+        <AnimatedPressable accessibilityLabel={t("home.addFirst")} onPress={() => router.push("/(app)/(tabs)/subscriptions/new")}
+          className="absolute right-5 h-14 w-14 items-center justify-center rounded-full bg-accent" style={{ bottom: Math.max(insets.bottom, 16) + 88 }} scaleTarget={0.92}>
           <Text className="text-3xl font-light text-bg">+</Text>
         </AnimatedPressable>
-      </Link>
     </ScreenTransition>
   );
 }

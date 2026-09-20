@@ -22,8 +22,8 @@ export default function EditSubscriptionScreen() {
     ? { ...subscription, isTrial: false }
     : subscription;
 
-  const title = convertTrial === "1" ? t("subscriptions.detail.unarchive") : t("subscriptionForm.editTitle");
-  const submitLabel = convertTrial === "1" ? t("subscriptions.detail.markPaid") : t("subscriptionForm.saveButton");
+  const title = convertTrial === "1" ? t("subscriptions.detail.convertTrial") : t("subscriptionForm.editTitle");
+  const submitLabel = t("subscriptionForm.saveButton");
 
   return (
     <>

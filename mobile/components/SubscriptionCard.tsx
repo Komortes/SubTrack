@@ -18,13 +18,15 @@ export function SubscriptionCard({ subscription, compact = false, onPress }: Pro
   const days = daysUntil(subscription.renewalDate);
   const paused = !subscription.isActive && !subscription.isArchived;
   const trial = subscription.isTrial;
-  const urgent = !paused && !trial && days <= 0;
+  const urgent = subscription.isActive && !subscription.isArchived && days <= 0;
   const renewalLabel = days === 0
     ? t("subscriptions.card.today")
     : days < 0
-      ? t("subscriptions.detail.renewedDaysAgo", { days: Math.abs(days) })
+      ? t("subscriptions.detail.overdueDays", { days: Math.abs(days), count: Math.abs(days) })
       : t("subscriptions.card.daysLeft", { days });
-  const statusLabel = paused
+  const statusLabel = subscription.isArchived
+    ? t("subscriptions.detail.archived")
+    : paused
     ? t("subscriptions.filters.paused")
     : trial
       ? t("subscriptions.card.trial")
@@ -34,7 +36,7 @@ export function SubscriptionCard({ subscription, compact = false, onPress }: Pro
 
   const showConverted = subscription.currency !== primaryCurrency;
   const monthlyInPrimary = showConverted
-    ? convertAmount(normalizeMonthlyAmount(subscription), subscription.currency, primaryCurrency, rates)
+    ? convertAmount(normalizeMonthlyAmount({ ...subscription, isActive: true }), subscription.currency, primaryCurrency, rates)
     : null;
 
   if (compact) {
@@ -96,7 +98,7 @@ export function SubscriptionCard({ subscription, compact = false, onPress }: Pro
             </View>
           </View>
           <View className="mt-1 flex-row items-center justify-between gap-2">
-            <Text className="text-xs text-muted">
+            <Text className="flex-1 text-xs text-muted">
               {t(`categories.${subscription.category}`, subscription.category)} · {t(`billingPeriods.${subscription.billingPeriod}`, subscription.billingPeriod)}
             </Text>
             <View className={`rounded-full px-2.5 py-1 ${urgent ? "bg-danger/15" : "bg-bg"}`}>

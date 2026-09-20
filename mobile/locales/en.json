@@ -17,7 +17,11 @@
     "perMonth": "/mo",
     "reset": "Reset",
     "on": "On",
-    "off": "Off"
+    "off": "Off",
+    "syncNow": "Sync now",
+    "savedLocally": "Saved on this device",
+    "waitingToSync": "Changes are saved. Retry when you are online.",
+    "syncNeedsAttention": "Your changes are saved on this device. Check your connection, account and subscription details before retrying."
   },
   "categories": {
     "entertainment": "Entertainment",
@@ -87,7 +91,13 @@
     "addFirst": "Add subscription",
     "monthly": "Monthly",
     "yearly": "Yearly",
-    "syncError": "Sync failed"
+    "syncError": "Sync failed",
+    "overdueRenewals": "Needs attention",
+    "viewAll": "View all",
+    "emptyHint": "Add a subscription to see upcoming payments and your monthly total.",
+    "monthlyEstimate": "Monthly estimate",
+    "estimateHint": "Active subscriptions, adjusted to a monthly cost.",
+    "paymentCalendar": "Payment calendar"
   },
   "subscriptions": {
     "title": "Subscriptions",
@@ -105,7 +115,10 @@
     "groups": {
       "none": "None",
       "category": "Category",
-      "date": "Date"
+      "date": "Date",
+      "thisWeek": "Next 7 days",
+      "thisMonth": "Next 30 days",
+      "later": "Later"
     },
     "detail": {
       "renewsIn": "Renews in {{days}} days",
@@ -121,7 +134,17 @@
       "unarchive": "Unarchive",
       "deleteConfirmTitle": "Delete subscription?",
       "deleteConfirmMessage": "This will permanently delete \"{{name}}\" and all its payment history.",
-      "cancelReminderDays": "Cancel reminder {{days}} days before"
+      "cancelReminderDays": "Cancel reminder {{days}} days before",
+      "overdue": "Overdue",
+      "overdueDays": "{{days}} days overdue",
+      "confirmPaymentTitle": "Record this payment?",
+      "confirmPaymentMessage": "The next renewal will move to {{date}}. No money will be charged.",
+      "paymentStatus": "Status",
+      "convertTrial": "Convert to paid plan",
+      "pause": "Pause subscription",
+      "resume": "Resume subscription",
+      "overdueDays_one": "{{days}} day overdue",
+      "overdueDays_other": "{{days}} days overdue"
     },
     "card": {
       "daysLeft": "{{days}}d",
@@ -131,7 +154,21 @@
     "upcoming": {
       "title": "Upcoming",
       "empty": "No upcoming renewals"
-    }
+    },
+    "archiveTitle": "Archive",
+    "resultsCount": "{{count}} of {{total}} subscriptions",
+    "searchPlaceholder": "Search subscriptions",
+    "clearSearch": "Clear search",
+    "showCurrent": "Show current subscriptions",
+    "showArchived": "Show archive",
+    "compactView": "Compact view",
+    "expandedView": "Detailed view",
+    "filterOptions": "Filters and sorting",
+    "sortTitle": "Sort by",
+    "groupTitle": "Group by",
+    "resetFilters": "Clear search & filters",
+    "archiveEmpty": "Your archive is empty",
+    "archiveEmptyHint": "Archived subscriptions stay here, outside your spending totals."
   },
   "stats": {
     "title": "Statistics",
@@ -153,7 +190,9 @@
     "proLocked": "Upgrade to Pro to see your analytics",
     "categoryFilter": "Filter by category",
     "resetFilter": "Reset",
-    "monthlyChart": "Monthly spending"
+    "monthlyChart": "Monthly spending",
+    "noHistory": "No payment history yet",
+    "noHistoryHint": "Record a payment to start your spending history. Cloud history appears after syncing."
   },
   "settings": {
     "title": "Settings",
@@ -210,7 +249,8 @@
       "deleteConfirmMessage": "This will permanently delete all your subscriptions and settings.",
       "pendingSync": "{{count}} changes pending sync"
     },
-    "syncError": "Sync failed. Settings saved locally."
+    "syncError": "Sync failed. Settings saved locally.",
+    "deleteAccountFailed": "The account could not be deleted. Your data is still available. Check your connection and try again."
   },
   "subscriptionForm": {
     "newTitle": "New Subscription",
@@ -234,7 +274,22 @@
     "suggestions": "Suggestions",
     "validationError": "Name and amount are required.",
     "saveButton": "Save subscription",
-    "deleteButton": "Delete subscription"
+    "deleteButton": "Delete subscription",
+    "invalidName": "Enter a name up to 120 characters.",
+    "invalidAmount": "Enter a valid amount between 0 and 9,999,999,999.99.",
+    "invalidPeriod": "Enter a whole number of days from 1 to 3650.",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "inOneWeek": "In a week",
+    "inOneMonth": "In a month",
+    "appearance": "Appearance",
+    "appearanceHint": "Icon and color",
+    "icon": "Icon",
+    "color": "Color",
+    "colorValue": "Select color {{color}}",
+    "trialEndDate": "Trial end date",
+    "pastDateHint": "This payment is overdue. The date stays unchanged until you record a payment.",
+    "reminderHint": "Choose when to be reminded before renewal."
   },
   "paywall": {
     "title": "SubTrack Pro",
@@ -270,7 +325,10 @@
     "title": "SubTrack",
     "subtitle": "Tap to unlock",
     "unlockButton": "Unlock with Face ID",
-    "unlockError": "Authentication failed. Try again."
+    "unlockError": "Authentication failed. Try again.",
+    "logoutButton": "Log out",
+    "logoutConfirmTitle": "Log out?",
+    "logoutConfirmMessage": "You'll need to sign in again to access your subscriptions."
   },
   "backup": {
     "exportSuccess": "Backup exported successfully",
@@ -278,5 +336,11 @@
     "restoreSuccess": "{{count}} subscriptions restored",
     "restoreError": "Could not read backup file",
     "invalidFile": "Invalid backup file"
+  },
+  "navigation": {
+    "home": "Home",
+    "subscriptions": "Subscriptions",
+    "stats": "Statistics",
+    "settings": "Settings"
   }
 }

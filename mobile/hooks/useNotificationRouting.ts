@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
-import { InteractionManager } from "react-native";
+import { InteractionManager, Platform } from "react-native";
 
 type NotificationData = {
   subscriptionId?: unknown;
@@ -10,6 +10,7 @@ type NotificationData = {
 
 export function useNotificationRouting() {
   useEffect(() => {
+    if (Platform.OS === "web") return;
     function openFromResponse(response: Notifications.NotificationResponse | null) {
       const subscriptionId = getSubscriptionId(response);
       if (!subscriptionId) return;

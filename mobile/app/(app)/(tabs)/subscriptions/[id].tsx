@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Stack, router, useLocalSearchParams } from "expo-router";
@@ -9,7 +9,7 @@ import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { FadeInView } from "@/components/FadeInView";
 import { ServiceIcon } from "@/components/ServiceIcon";
 import { formatDate, formatShortDate, toLocalDate, toLocalIsoDate } from "@/lib/dateFormat";
-import { daysUntil, formatMoney, normalizeMonthlyAmount } from "@/lib/subscriptionMath";
+import { daysUntil, formatMoney, nextRenewalDate, normalizeMonthlyAmount } from "@/lib/subscriptionMath";
 import { haptic } from "@/lib/haptics";
 import { useIsDark } from "@/hooks/useIsDark";
 import { useAuthStore } from "@/store/authStore";
@@ -27,10 +27,19 @@ function subtractDays(dateStr: string, days: number): string {
 function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-1 rounded-2xl border border-border bg-bg p-3">
-      <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{label}</Text>
-      <Text className="mt-1 text-sm font-bold text-ink" numberOfLines={1}>{value}</Text>
+      <Text className="text-xs font-medium text-muted">{label}</Text>
+      <Text className="mt-1 text-sm font-bold text-ink">{value}</Text>
     </View>
   );
+}
+
+function RenewalProgress({ progress, overdue }: { progress: number; overdue: boolean }) {
+  const progressAnim = useSharedValue(0);
+  useEffect(() => {
+    progressAnim.value = withTiming(progress, { duration: 600, reduceMotion: ReduceMotion.System });
+  }, [progress, progressAnim]);
+  const progressBarStyle = useAnimatedStyle(() => ({ width: `${progressAnim.value * 100}%` as unknown as number }));
+  return <Animated.View className={`h-1.5 rounded-full ${overdue ? "bg-danger" : "bg-ink"}`} style={progressBarStyle} />;
 }
 
 export default function SubscriptionDetailsScreen() {
@@ -47,6 +56,7 @@ export default function SubscriptionDetailsScreen() {
   const primaryCurrency = useSettingsStore((state) => state.primaryCurrency);
   const rates = useCurrencyStore((state) => state.rates);
   const isDark = useIsDark();
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const headerBg = isDark ? "#0a0a0a" : "#fafafa";
   const headerTint = isDark ? "#fafafa" : "#0a0a0a";
 
@@ -74,28 +84,24 @@ export default function SubscriptionDetailsScreen() {
   const daysLeft = daysUntil(currentSubscription.renewalDate);
   const progress = Math.max(0, Math.min(1, 1 - daysLeft / periodDays));
 
-  const progressAnim = useSharedValue(0);
-  useEffect(() => {
-    progressAnim.value = withTiming(progress, { duration: 600, reduceMotion: ReduceMotion.System });
-  }, [progress, progressAnim]);
-  const progressBarStyle = useAnimatedStyle(() => ({ width: `${progressAnim.value * 100}%` as unknown as number }));
   const previousDateStr = subtractDays(currentSubscription.renewalDate, periodDays);
-  const monthlyAmount = normalizeMonthlyAmount(currentSubscription);
+  const monthlyAmount = normalizeMonthlyAmount({ ...currentSubscription, isActive: true });
   const monthlyInPrimary = convertAmount(monthlyAmount, currentSubscription.currency, primaryCurrency, rates);
   const showConverted = currentSubscription.currency !== primaryCurrency;
   const subscriptionId = currentSubscription.id;
   const subscriptionName = currentSubscription.name;
   const renewalBadge =
     daysLeft === 0 ? t("subscriptions.detail.renewsToday")
-    : daysLeft < 0 ? t("subscriptions.detail.renewedDaysAgo", { days: Math.abs(daysLeft) })
+    : daysLeft < 0 ? t("subscriptions.detail.overdueDays", { days: Math.abs(daysLeft), count: Math.abs(daysLeft) })
     : t("subscriptions.detail.renewsIn", { days: daysLeft });
-  const statusLabel = subscription.isTrial
-    ? t("subscriptions.detail.trial")
+  const statusLabel = subscription.isArchived
+    ? t("subscriptions.detail.archived")
     : !subscription.isActive
       ? t("subscriptions.filters.paused")
-      : daysLeft <= 0
-        ? t("subscriptions.detail.renewsToday")
-        : t("subscriptions.filters.active");
+      : subscription.isTrial
+        ? t("subscriptions.detail.trial")
+        : daysLeft < 0 ? t("subscriptions.detail.overdue") : daysLeft === 0
+          ? t("subscriptions.detail.renewsToday") : t("subscriptions.filters.active");
 
   function confirmDeleteSubscription() {
     Alert.alert(t("subscriptions.detail.deleteConfirmTitle"), t("subscriptions.detail.deleteConfirmMessage", { name: subscriptionName }), [
@@ -105,7 +111,7 @@ export default function SubscriptionDetailsScreen() {
         style: "destructive",
         onPress: () => {
           haptic.warning();
-          deleteSubscription(subscriptionId);
+          deleteSubscription(subscriptionId).catch(() => undefined);
           router.back();
         }
       }
@@ -113,8 +119,22 @@ export default function SubscriptionDetailsScreen() {
   }
 
   function confirmMarkPaid() {
-    haptic.success();
-    markPaid(subscriptionId).catch(() => undefined);
+    Alert.alert(t("subscriptions.detail.confirmPaymentTitle"), t("subscriptions.detail.confirmPaymentMessage", {
+      date: formatDate(nextRenewalDate(currentSubscription), dateFormat)
+    }), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("subscriptions.detail.markPaid"), onPress: async () => {
+        setIsMarkingPaid(true);
+        try {
+          await markPaid(subscriptionId);
+          haptic.success();
+        } catch {
+          Alert.alert(t("common.error"));
+        } finally {
+          setIsMarkingPaid(false);
+        }
+      } }
+    ]);
   }
 
   function toggleActive() {
@@ -132,6 +152,7 @@ export default function SubscriptionDetailsScreen() {
           headerTitleStyle: { color: headerTint, fontWeight: "600" },
           headerLeft: () => (
             <AnimatedPressable
+              accessibilityLabel={t("common.back")}
               onPress={() => router.back()}
               hapticFeedback={false}
               scaleTarget={0.88}
@@ -150,35 +171,21 @@ export default function SubscriptionDetailsScreen() {
             style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
           />
           <FadeInView className="px-5 pb-5 pt-8">
-            <View className="flex-row items-start justify-between gap-4">
+            <View className="flex-row items-start gap-3">
+              <ServiceIcon name={subscription.name} iconSlug={subscription.iconSlug} color={subscription.color} size={52} />
               <View className="flex-1">
-                <View className="flex-row items-center gap-3">
-                  <ServiceIcon name={subscription.name} iconSlug={subscription.iconSlug} color={subscription.color} size={60} />
-                  <View className="flex-1">
-                    <Text className="text-2xl font-bold tracking-tight text-ink" numberOfLines={1}>{subscription.name}</Text>
-                    <Text className="mt-1 text-sm text-subtle">
-                      {t(`categories.${subscription.category}`, subscription.category)}
-                    </Text>
-                  </View>
-                </View>
+                <Text className="text-2xl font-bold tracking-tight text-ink" numberOfLines={2}>{subscription.name}</Text>
+                <Text className="mt-1 text-sm text-subtle">{t(`categories.${subscription.category}`, subscription.category)}</Text>
               </View>
-              <View className={`rounded-full px-3 py-1.5 ${
-                subscription.isTrial ? "bg-accent/10" :
-                daysLeft <= 0 || !subscription.isActive ? "bg-danger/10" : "bg-surface"
-              }`}>
-                <Text className={`text-xs font-semibold ${
-                  subscription.isTrial ? "text-accent" :
-                  daysLeft <= 0 || !subscription.isActive ? "text-danger" : "text-muted"
-                }`}>
-                  {statusLabel}
-                </Text>
-              </View>
+            </View>
+            <View className={`mt-3 self-start rounded-full px-3 py-1.5 ${subscription.isActive && !subscription.isArchived && daysLeft <= 0 ? "bg-danger/10" : "bg-surface"}`}>
+              <Text className={`text-xs font-semibold ${subscription.isActive && !subscription.isArchived && daysLeft <= 0 ? "text-danger" : "text-muted"}`}>{statusLabel}</Text>
             </View>
 
             <View className="mt-7 rounded-3xl border border-border bg-surface p-5">
-              <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("subscriptions.detail.markPaid")}</Text>
+              <Text className="text-xs font-semibold uppercase tracking-widest text-muted">{t("subscriptionForm.fields.amount")} · {t(`billingPeriods.${subscription.billingPeriod}`)}</Text>
               <View className="mt-3 flex-row items-end gap-2">
-                <Text className="text-5xl font-bold tracking-tighter text-ink">
+                <Text className="text-4xl font-bold tracking-tighter text-ink" adjustsFontSizeToFit numberOfLines={1}>
                   {formatMoney(subscription.amount, subscription.currency)}
                 </Text>
               </View>
@@ -190,7 +197,7 @@ export default function SubscriptionDetailsScreen() {
 
               <View className="mt-5 flex-row gap-2">
                 <DetailMetric label={t("subscriptionForm.fields.renewalDate")} value={formatDate(subscription.renewalDate, dateFormat)} />
-                <DetailMetric label={t("subscriptions.detail.renewsIn", { days: daysLeft })} value={renewalBadge} />
+                <DetailMetric label={t("subscriptions.detail.paymentStatus")} value={subscription.isActive && !subscription.isArchived ? renewalBadge : statusLabel} />
               </View>
             </View>
           </FadeInView>
@@ -204,10 +211,7 @@ export default function SubscriptionDetailsScreen() {
               <Text className="text-xs font-semibold text-subtle">{Math.round(progress * 100)}%</Text>
             </View>
             <View className="mt-3 h-1.5 overflow-hidden rounded-full bg-border">
-              <Animated.View
-                className={`h-1.5 rounded-full ${daysLeft <= 0 ? "bg-danger" : "bg-ink"}`}
-                style={progressBarStyle}
-              />
+              <RenewalProgress progress={progress} overdue={subscription.isActive && !subscription.isArchived && daysLeft <= 0} />
             </View>
             <View className="mt-2 flex-row justify-between">
               <Text className="text-xs text-muted">{formatShortDate(previousDateStr)}</Text>
@@ -218,12 +222,16 @@ export default function SubscriptionDetailsScreen() {
           <FadeInView index={2} className="flex-row gap-2">
             <AnimatedPressable
               className="h-14 w-14 items-center justify-center rounded-2xl border border-border bg-surface"
+              accessibilityLabel={t("common.edit")}
               onPress={() => router.push(`/(app)/(tabs)/subscriptions/${subscription.id}/edit`)}
             >
               <Feather name="edit-3" size={19} color="#a3a3a3" />
             </AnimatedPressable>
             <AnimatedPressable
               className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-accent"
+              accessibilityLabel={subscription.isTrial ? t("subscriptions.detail.convertTrial") : t("subscriptions.detail.markPaid")}
+              disabled={isMarkingPaid || subscription.isArchived}
+              style={{ opacity: isMarkingPaid || subscription.isArchived ? 0.45 : 1 }}
               onPress={subscription.isTrial
                 ? () => router.push(`/(app)/(tabs)/subscriptions/${subscription.id}/edit?convertTrial=1`)
                 : confirmMarkPaid
@@ -235,7 +243,7 @@ export default function SubscriptionDetailsScreen() {
                 color={isDark ? "#0a0a0a" : "#fafafa"}
               />
               <Text className="font-semibold text-bg">
-                {subscription.isTrial ? t("subscriptions.detail.unarchive") : t("subscriptions.detail.markPaid")}
+                {isMarkingPaid ? t("common.loading") : subscription.isTrial ? t("subscriptions.detail.convertTrial") : t("subscriptions.detail.markPaid")}
               </Text>
             </AnimatedPressable>
           </FadeInView>
@@ -277,23 +285,24 @@ export default function SubscriptionDetailsScreen() {
           <FadeInView index={subscription.notes ? 5 : 4} className="gap-3 pb-4">
             <AnimatedPressable
               className="rounded-2xl border border-border bg-surface px-5 py-4"
+              disabled={subscription.isArchived}
+              style={{ display: subscription.isArchived ? "none" : "flex" }}
               onPress={toggleActive}
             >
               <Text className="text-center font-semibold text-ink">
-                {subscription.isActive ? t("subscriptions.filters.paused") : t("subscriptions.filters.active")}
+                {subscription.isActive ? t("subscriptions.detail.pause") : t("subscriptions.detail.resume")}
               </Text>
-            </AnimatedPressable>
-
-            <AnimatedPressable
-              className="rounded-2xl border border-border bg-surface px-4 py-4"
-              onPress={() => router.push(`/(app)/(tabs)/subscriptions/${subscription.id}/edit`)}
-            >
-              <Text className="text-center font-semibold text-ink">{t("common.edit")}</Text>
             </AnimatedPressable>
 
             <AnimatedPressable
               className="rounded-2xl border border-border bg-surface px-5 py-4"
               onPress={() => {
+                if (subscription.isArchived) {
+                  updateSubscription(subscriptionId, { isArchived: false, isActive: true }).catch((error) => {
+                    Alert.alert(t("common.error"), error instanceof Error && error.message === "FREE_LIMIT_REACHED" ? t("proGate.limitHint") : t("common.error"));
+                  });
+                  return;
+                }
                 Alert.alert(
                   t("subscriptions.detail.archive"),
                   subscriptionName,
@@ -304,7 +313,7 @@ export default function SubscriptionDetailsScreen() {
                       style: "destructive",
                       onPress: () => {
                         haptic.warning();
-                        archiveSubscription(subscriptionId);
+                        archiveSubscription(subscriptionId).catch(() => undefined);
                         router.back();
                       }
                     }
@@ -312,7 +321,7 @@ export default function SubscriptionDetailsScreen() {
                 );
               }}
             >
-              <Text className="text-center font-semibold text-muted">{t("subscriptions.detail.archive")}</Text>
+              <Text className="text-center font-semibold text-muted">{t(subscription.isArchived ? "subscriptions.detail.unarchive" : "subscriptions.detail.archive")}</Text>
             </AnimatedPressable>
 
             <AnimatedPressable

@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useProStore } from "@/store/proStore";
 
-const FEATURES: Array<{ icon: keyof typeof Feather.glyphMap; key: string }> = [
+const FEATURES: { icon: keyof typeof Feather.glyphMap; key: string }[] = [
   { icon: "list", key: "paywall.features.unlimited" },
   { icon: "activity", key: "paywall.features.stats" },
   { icon: "download", key: "paywall.features.export" },
@@ -42,7 +42,7 @@ export default function PaywallScreen() {
       Alert.alert(t("paywall.restoreSuccess"));
       router.back();
     } catch (e: unknown) {
-      Alert.alert((e as Error).message);
+      Alert.alert(e instanceof Error ? e.message : t("paywall.purchaseError"));
     }
   }
 

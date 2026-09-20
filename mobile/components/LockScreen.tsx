@@ -1,13 +1,16 @@
 import { useState } from "react";
 import * as LocalAuthentication from "expo-local-authentication";
 import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { Alert, Modal, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
+import { useAuthStore } from "@/store/authStore";
 
 export function LockScreen({ visible, onUnlock }: { visible: boolean; onUnlock: () => void }) {
   const { t } = useTranslation();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const logout = useAuthStore((state) => state.logout);
 
   async function handleUnlock() {
     if (isAuthenticating) return;
@@ -16,7 +19,10 @@ export function LockScreen({ visible, onUnlock }: { visible: boolean; onUnlock: 
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: t("lockScreen.title"),
         cancelLabel: t("common.cancel"),
-        disableDeviceFallback: true,
+        // Allow the device passcode as a fallback: if Face/Touch ID is
+        // temporarily unavailable (injury, mask, hardware issue) with no
+        // fallback, users were being permanently locked out of the app.
+        disableDeviceFallback: false,
       });
       if (result.success) {
         onUnlock();
@@ -26,6 +32,24 @@ export function LockScreen({ visible, onUnlock }: { visible: boolean; onUnlock: 
     } finally {
       setIsAuthenticating(false);
     }
+  }
+
+  async function handleLogout() {
+    Alert.alert(t("lockScreen.logoutConfirmTitle"), t("lockScreen.logoutConfirmMessage"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("lockScreen.logoutButton"),
+        style: "destructive",
+        onPress: () => {
+          logout()
+            .then(() => {
+              onUnlock();
+              router.replace("/");
+            })
+            .catch(() => undefined);
+        }
+      }
+    ]);
   }
 
   return (
@@ -48,6 +72,9 @@ export function LockScreen({ visible, onUnlock }: { visible: boolean; onUnlock: 
           <Text className="text-center text-base font-semibold text-bg">
             {isAuthenticating ? "..." : t("lockScreen.unlockButton")}
           </Text>
+        </AnimatedPressable>
+        <AnimatedPressable className="mt-4 py-2" onPress={handleLogout}>
+          <Text className="text-center text-sm font-medium text-muted">{t("lockScreen.logoutButton")}</Text>
         </AnimatedPressable>
       </View>
     </Modal>

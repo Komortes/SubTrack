@@ -17,27 +17,18 @@ type Props = {
 export function MonthlyChart({ monthlyTotal, primaryCurrency = "CZK", data }: Props) {
   const { t } = useTranslation();
 
-  // Use locale-aware short month labels for placeholder data
-  const placeholderLabels = useMemo(() => {
-    const now = new Date();
-    return Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
-      return {
-        key: d.toISOString().slice(0, 7),
-        label: d.toLocaleDateString(undefined, { month: "short" }),
-        total: monthlyTotal * (0.75 + i * 0.05)
-      };
-    });
-  }, [monthlyTotal]);
-
-  const points = useMemo(
-    () => data?.length ? data.slice(-6) : placeholderLabels,
-    [data, placeholderLabels]
-  );
+  const points = useMemo(() => data?.slice(-6) ?? [], [data]);
   const [selectedKey, setSelectedKey] = useState(points.at(-1)?.key ?? "");
   const values = points.map((point) => point.total);
   const max = Math.max(...values, 1);
   const selectedPoint = points.find((point) => point.key === selectedKey) ?? points.at(-1);
+
+  if (points.length === 0) {
+    return <View className="rounded-2xl border border-border bg-surface p-5">
+      <Text className="font-semibold text-ink">{t("stats.noHistory")}</Text>
+      <Text className="mt-2 text-sm leading-5 text-muted">{t("stats.noHistoryHint")}</Text>
+    </View>;
+  }
 
   return (
     <View>
@@ -57,6 +48,8 @@ export function MonthlyChart({ monthlyTotal, primaryCurrency = "CZK", data }: Pr
             <AnimatedPressable
               className={`w-full justify-end rounded-xl ${selected ? "bg-neutral-700" : "bg-border"}`}
               style={{ height: 120 }}
+              accessibilityLabel={`${point.label}: ${formatMoney(point.total, primaryCurrency)}`}
+              accessibilityState={{ selected }}
               scaleTarget={0.96}
               onPress={() => setSelectedKey(point.key)}
             >

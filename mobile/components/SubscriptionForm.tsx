@@ -1,12 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { AnimatedPressable } from "@/components/AnimatedPressable";
 import { haptic } from "@/lib/haptics";
 import { billingPeriods, categories, currencies, iconColors, serviceIconOptions, serviceSuggestions } from "@/lib/catalog";
 import { formatDate, toLocalIsoDate } from "@/lib/dateFormat";
+import { nextRenewalDate } from "@/lib/subscriptionMath";
+import { useIsDark } from "@/hooks/useIsDark";
 import { BillingPeriod, Subscription, SubscriptionCategory } from "@/lib/types";
 import { ServiceIcon } from "./ServiceIcon";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -38,9 +40,11 @@ function addDays(value: string, days: number): string {
 }
 
 function addMonths(value: string, months: number): string {
-  const date = toDate(value);
-  date.setMonth(date.getMonth() + months);
-  return toIsoDate(date);
+  let date = value;
+  for (let index = 0; index < months; index += 1) {
+    date = nextRenewalDate({ renewalDate: date, billingPeriod: "monthly" });
+  }
+  return date;
 }
 
 function Label({ children, top }: { children: React.ReactNode; top?: boolean }) {
@@ -74,7 +78,9 @@ function FormStepHeader({
 }
 
 function DateSelector({ value, onChange, minDate }: { value: string; onChange: (value: string) => void; minDate?: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isDark = useIsDark();
+  const iconColor = isDark ? "#fafafa" : "#0a0a0a";
   const dateFormat = useSettingsStore((state) => state.dateFormat);
   const selectedDate = toDate(value);
   const [visibleMonth, setVisibleMonth] = useState(
@@ -84,18 +90,18 @@ function DateSelector({ value, onChange, minDate }: { value: string; onChange: (
   // Use locale-based month names
   const monthNames = useMemo(() => {
     return Array.from({ length: 12 }, (_, i) =>
-      new Date(2000, i, 1).toLocaleDateString(undefined, { month: "long" })
+      new Date(2000, i, 1).toLocaleDateString(i18n.language, { month: "long" })
     );
-  }, []);
+  }, [i18n.language]);
 
   // Use locale-based weekday abbreviations (Mon-first)
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       // Start from Monday (index 1), wrap Sunday (index 0) to end
       const day = new Date(2000, 0, 3 + i); // Jan 3 2000 is Monday
-      return day.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2);
+      return day.toLocaleDateString(i18n.language, { weekday: "short" }).slice(0, 2);
     });
-  }, []);
+  }, [i18n.language]);
 
   const days = useMemo(() => {
     const year = visibleMonth.getFullYear();
@@ -125,9 +131,10 @@ function DateSelector({ value, onChange, minDate }: { value: string; onChange: (
         <AnimatedPressable
           className="h-10 w-10 items-center justify-center rounded-full border border-border bg-surface"
           hitSlop={8}
+          accessibilityLabel={t("subscriptionForm.previousMonth")}
           onPress={() => moveMonth(-1)}
         >
-          <Feather name="chevron-left" size={17} color="#fafafa" />
+          <Feather name="chevron-left" size={17} color={iconColor} />
         </AnimatedPressable>
         <View className="flex-1 items-center px-3">
           <Text className="text-base font-semibold text-ink">
@@ -138,17 +145,18 @@ function DateSelector({ value, onChange, minDate }: { value: string; onChange: (
         <AnimatedPressable
           className="h-10 w-10 items-center justify-center rounded-full border border-border bg-surface"
           hitSlop={8}
+          accessibilityLabel={t("subscriptionForm.nextMonth")}
           onPress={() => moveMonth(1)}
         >
-          <Feather name="chevron-right" size={17} color="#fafafa" />
+          <Feather name="chevron-right" size={17} color={iconColor} />
         </AnimatedPressable>
       </View>
 
       <View className="mt-4 flex-row gap-2">
         {([
           [t("subscriptions.card.today"), today()],
-          ["+7d", addDays(today(), 7)],
-          ["+1mo", addMonths(today(), 1)]
+          [t("subscriptionForm.inOneWeek"), addDays(today(), 7)],
+          [t("subscriptionForm.inOneMonth"), addMonths(today(), 1)]
         ] as [string, string][])
         .filter(([, next]) => !minDate || next >= minDate)
         .map(([label, next]) => (
@@ -185,7 +193,10 @@ function DateSelector({ value, onChange, minDate }: { value: string; onChange: (
                     selected ? "bg-ink" : isToday ? "border border-border bg-surface" : isPast ? "opacity-20" : "bg-transparent"
                   }`}
                   hitSlop={2}
-                  onPress={() => { if (!isPast) onChange(iso); }}
+                  disabled={isPast}
+                  accessibilityLabel={formatDate(iso, dateFormat)}
+                  accessibilityState={{ selected }}
+                  onPress={() => onChange(iso)}
                 >
                   <Text className={`text-sm font-semibold ${selected ? "text-bg" : "text-ink"}`}>
                     {day.getDate()}
@@ -205,6 +216,7 @@ function DateSelector({ value, onChange, minDate }: { value: string; onChange: (
 export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const isDark = useIsDark();
   const primaryCurrency = useSettingsStore((state) => state.primaryCurrency);
   const [name, setName] = useState(initialValue?.name ?? "");
   const [amount, setAmount] = useState(initialValue ? String(Number(initialValue.amount)) : "");
@@ -264,58 +276,39 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
     const parsedAmount = Number(amount.replace(",", "."));
     const parsedCustomDays = Number(customPeriodDays);
 
-    if (!trimmedName) {
-      setFormError(t("subscriptionForm.validationError"));
+    if (!trimmedName || trimmedName.length > 120) {
+      setFormError(t("subscriptionForm.invalidName"));
       return;
     }
-    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-      setFormError(t("subscriptionForm.validationError"));
+    if (!amount.trim() || !Number.isFinite(parsedAmount) || parsedAmount < 0 || parsedAmount > 9999999999.99) {
+      setFormError(t("subscriptionForm.invalidAmount"));
       return;
     }
-    if (billingPeriod === "custom" && (Number.isNaN(parsedCustomDays) || parsedCustomDays <= 0)) {
-      setFormError(t("subscriptionForm.validationError"));
+    if (billingPeriod === "custom" && (!Number.isSafeInteger(parsedCustomDays) || parsedCustomDays < 1 || parsedCustomDays > 3650)) {
+      setFormError(t("subscriptionForm.invalidPeriod"));
       return;
     }
 
     setFormError(null);
     setIsSubmitting(true);
 
-    // Advance past renewal dates forward until future
-    let effectiveRenewalDate = renewalDate;
-    const todayStr = today();
-    let safety = 0;
-    while (effectiveRenewalDate < todayStr && safety < 366) {
-      const d = toDate(effectiveRenewalDate);
-      if (billingPeriod === "monthly") {
-        d.setMonth(d.getMonth() + 1);
-      } else if (billingPeriod === "yearly") {
-        d.setFullYear(d.getFullYear() + 1);
-      } else if (billingPeriod === "weekly") {
-        d.setDate(d.getDate() + 7);
-      } else {
-        d.setDate(d.getDate() + (parsedCustomDays || 30));
-      }
-      effectiveRenewalDate = toIsoDate(d);
-      safety++;
-    }
-
     try {
-      haptic.success();
       await onSubmit({
         name: trimmedName,
         amount: parsedAmount,
         currency,
         billingPeriod,
         customPeriodDays: billingPeriod === "custom" ? parsedCustomDays : undefined,
-        renewalDate: effectiveRenewalDate,
+        renewalDate,
         category,
         iconSlug: iconSlug || undefined,
         color,
-        notes: notes.trim() || undefined,
+        notes: notes.trim(),
         isTrial,
         isArchived: initialValue?.isArchived ?? false,
         cancelReminderDays: cancelReminderDays ?? null
       });
+      haptic.success();
     } catch (error) {
       setFormError(error instanceof Error ? error.message : t("subscriptionForm.validationError"));
     } finally {
@@ -358,6 +351,8 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
             placeholderTextColor="#525252"
             value={name}
             onChangeText={(v) => { setName(v); if (formError) setFormError(null); }}
+            accessibilityLabel={t("subscriptionForm.fields.name")}
+            maxLength={120}
             autoFocus={!initialValue}
           />
 
@@ -392,10 +387,12 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
                 <AnimatedPressable
                   key={item.value}
                   className={`flex-row items-center gap-2 rounded-full border px-4 py-2.5 ${selected ? "border-ink bg-ink" : "border-border bg-bg"}`}
+                  accessibilityLabel={item.label}
+                  accessibilityState={{ selected }}
                   hitSlop={4}
                   onPress={() => setCategory(item.value)}
                 >
-                  <Feather name={iconName} size={13} color={selected ? "#0a0a0a" : "#525252"} />
+                  <Feather name={iconName} size={13} color={selected ? (isDark ? "#0a0a0a" : "#fafafa") : (isDark ? "#a3a3a3" : "#525252")} />
                   <Text className={selected ? "text-sm font-semibold text-bg" : "text-sm font-semibold text-muted"}>
                     {item.label}
                   </Text>
@@ -411,8 +408,8 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
             <View className="flex-row items-center gap-3">
               <View className="h-8 w-8 rounded-full" style={{ backgroundColor: color }} />
               <View>
-                <Text className="text-sm font-semibold text-ink">Appearance</Text>
-                <Text className="mt-0.5 text-xs text-muted">Icon & color</Text>
+                <Text className="text-sm font-semibold text-ink">{t("subscriptionForm.appearance")}</Text>
+                <Text className="mt-0.5 text-xs text-muted">{t("subscriptionForm.appearanceHint")}</Text>
               </View>
             </View>
             <Feather name={appearanceExpanded ? "chevron-up" : "chevron-down"} size={18} color="#a3a3a3" />
@@ -420,7 +417,7 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
 
           {appearanceExpanded ? (
             <View>
-              <Label>Icon</Label>
+              <Label>{t("subscriptionForm.icon")}</Label>
               <View className="flex-row flex-wrap gap-3">
                 {(iconsExpanded ? serviceIconOptions : serviceIconOptions.slice(0, 8)).map((item) => {
                   const selected = iconSlug === item.slug;
@@ -455,7 +452,7 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
                 </AnimatedPressable>
               ) : null}
 
-              <Label>Color</Label>
+              <Label>{t("subscriptionForm.color")}</Label>
               <View className="flex-row flex-wrap gap-3">
                 {iconColors.map((item) => {
                   const selected = color.toLowerCase() === item.toLowerCase();
@@ -463,6 +460,8 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
                     <AnimatedPressable
                       key={item}
                       className={`h-12 w-12 items-center justify-center rounded-full border ${selected ? "border-ink" : "border-transparent"}`}
+                      accessibilityLabel={t("subscriptionForm.colorValue", { color: item })}
+                      accessibilityState={{ selected }}
                       onPress={() => setColor(item)}
                     >
                       <View className="h-9 w-9 rounded-full" style={{ backgroundColor: item }} />
@@ -485,6 +484,7 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
             className={`rounded-xl border bg-bg px-4 py-4 text-2xl font-bold text-ink ${formError && Number(amount.replace(",", ".")) <= 0 ? "border-danger" : "border-border"}`}
             placeholder="0.00"
             placeholderTextColor="#525252"
+            accessibilityLabel={t("subscriptionForm.fields.amount")}
             keyboardType="decimal-pad"
             value={amount}
             onChangeText={(v) => { setAmount(v); if (formError) setFormError(null); }}
@@ -498,6 +498,7 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
                   key={item}
                   className={`h-11 min-w-[56px] items-center justify-center rounded-lg px-3 ${currency === item ? "bg-ink" : ""}`}
                   hitSlop={4}
+                  accessibilityState={{ selected: currency === item }}
                   onPress={() => setCurrency(item)}
                 >
                   <Text className={`text-sm ${currency === item ? "font-semibold text-bg" : "font-semibold text-muted"}`}>
@@ -523,6 +524,7 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
                 className={`h-11 items-center justify-center rounded-xl border ${billingPeriod === item.value ? "border-ink bg-ink" : "border-border bg-bg"}`}
                 style={{ width: "48%" }}
                 hitSlop={4}
+                accessibilityState={{ selected: billingPeriod === item.value }}
                 onPress={() => setBillingPeriod(item.value)}
               >
                 <Text className={billingPeriod === item.value ? "text-sm font-semibold text-bg" : "text-sm font-semibold text-muted"}>
@@ -539,6 +541,7 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
                 className={`rounded-xl border bg-bg px-4 py-4 text-base text-ink ${formError && Number(customPeriodDays) <= 0 ? "border-danger" : "border-border"}`}
                 placeholder={t("subscriptionForm.fields.customPeriodDays", { days: "X" })}
                 placeholderTextColor="#525252"
+                accessibilityLabel={t("subscriptionForm.fields.customPeriodDays", { days: customPeriodDays })}
                 keyboardType="number-pad"
                 value={customPeriodDays}
                 onChangeText={(v) => { setCustomPeriodDays(v); if (formError) setFormError(null); }}
@@ -546,20 +549,20 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
             </>
           ) : null}
 
-          <Label>{isTrial ? t("subscriptions.detail.trialEndsIn", { days: 0 }) : t("subscriptionForm.fields.renewalDate")}</Label>
+          <Label>{isTrial ? t("subscriptionForm.trialEndDate") : t("subscriptionForm.fields.renewalDate")}</Label>
           <DateSelector value={renewalDate} onChange={setRenewalDate} minDate={isTrial ? today() : undefined} />
           {renewalDate < today() ? (
             <View className="mt-2 flex-row items-center gap-2">
               <Feather name="info" size={13} color="#525252" />
               <Text className="flex-1 text-xs text-muted">
-                Date is in the past — will be auto-advanced to the next upcoming renewal.
+                {t("subscriptionForm.pastDateHint")}
               </Text>
             </View>
           ) : null}
         </View>
 
         <View className="rounded-2xl border border-border bg-surface p-5">
-          <FormStepHeader icon="tag" title={t("subscriptionForm.fields.isTrial")} subtitle={t("subscriptions.detail.cancelReminderDays", { days: 0 })} />
+          <FormStepHeader icon="tag" title={t("subscriptionForm.fields.isTrial")} subtitle={t("subscriptionForm.reminderHint")} />
 
           <View className="flex-row items-center justify-between py-1">
             <View className="flex-1 pr-4">
@@ -567,13 +570,14 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
               <Text className="mt-0.5 text-xs text-muted">{t("subscriptions.detail.trial")}</Text>
             </View>
             <Switch
+              accessibilityLabel={t("subscriptionForm.fields.isTrial")}
               value={isTrial}
               onValueChange={(value) => {
                 setIsTrial(value);
                 if (value && renewalDate < today()) setRenewalDate(today());
               }}
-              trackColor={{ false: "#404040", true: "#fafafa" }}
-              thumbColor="#0a0a0a"
+              trackColor={{ false: "#737373", true: isDark ? "#fafafa" : "#0a0a0a" }}
+              thumbColor={isDark ? "#0a0a0a" : "#fafafa"}
             />
           </View>
 
@@ -583,16 +587,17 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
           <View className="flex-row flex-wrap gap-2">
             {([
               { label: t("subscriptionForm.fields.cancelReminderNone"), value: null },
-              { label: "1d", value: 1 },
-              { label: "2d", value: 2 },
-              { label: "3d", value: 3 },
-              { label: "7d", value: 7 }
+              { label: t("subscriptions.card.daysLeft", { days: 1 }), value: 1 },
+              { label: t("subscriptions.card.daysLeft", { days: 2 }), value: 2 },
+              { label: t("subscriptions.card.daysLeft", { days: 3 }), value: 3 },
+              { label: t("subscriptions.card.daysLeft", { days: 7 }), value: 7 }
             ] as { label: string; value: number | null }[]).map((option) => {
               const selected = cancelReminderDays === option.value;
               return (
                 <AnimatedPressable
                   key={String(option.value)}
                   className={`h-10 items-center justify-center rounded-xl border px-4 ${selected ? "border-ink bg-ink" : "border-border bg-bg"}`}
+                  accessibilityState={{ selected }}
                   onPress={() => setCancelReminderDays(option.value)}
                 >
                   <Text className={`text-sm font-semibold ${selected ? "text-bg" : "text-muted"}`}>{option.label}</Text>
@@ -613,6 +618,8 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
             className="min-h-24 rounded-xl border border-border bg-bg px-4 py-4 text-base text-ink"
             placeholder={t("subscriptionForm.fields.notesPlaceholder")}
             placeholderTextColor="#525252"
+            accessibilityLabel={t("subscriptionForm.fields.notes")}
+            maxLength={2000}
             multiline
             textAlignVertical="top"
             value={notes}
@@ -628,7 +635,7 @@ export function SubscriptionForm({ initialValue, submitLabel, onSubmit }: Props)
         style={{ bottom: 0, paddingBottom: insets.bottom + 12 }}
       >
         {formError ? (
-          <Text className="mb-2 text-center text-sm font-medium text-danger">{formError}</Text>
+          <Text accessibilityRole="alert" accessibilityLiveRegion="polite" className="mb-2 text-center text-sm font-medium text-danger">{formError}</Text>
         ) : null}
         <AnimatedPressable
           className={`rounded-2xl px-5 py-4 ${isSubmitting ? "bg-border" : "bg-accent"}`}

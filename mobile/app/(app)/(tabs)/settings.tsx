@@ -142,7 +142,6 @@ export default function SettingsScreen() {
   const theme = useSettingsStore((state) => state.theme);
   const updateSettings = useSettingsStore((state) => state.updateSettings);
   const syncSettings = useSettingsStore((state) => state.syncFromServer);
-  const resetSettings = useSettingsStore((state) => state.resetSettings);
   const biometricLockEnabled = useSettingsStore((state) => state.biometricLockEnabled);
   const biometricLockTimeout = useSettingsStore((state) => state.biometricLockTimeout);
   const setBiometricLock = useSettingsStore((state) => state.setBiometricLock);
@@ -158,7 +157,6 @@ export default function SettingsScreen() {
   const syncSubscriptions = useSubscriptionStore((state) => state.syncFromServer);
   const importSubscriptions = useSubscriptionStore((state) => state.importSubscriptions);
   const deleteAllSubscriptions = useSubscriptionStore((state) => state.deleteAllSubscriptions);
-  const resetSubscriptions = useSubscriptionStore((state) => state.resetSubscriptions);
   const rates = useCurrencyStore((state) => state.rates);
   const lastUpdated = useCurrencyStore((state) => state.lastUpdated);
   const isFetchingRates = useCurrencyStore((state) => state.isFetching);
@@ -358,10 +356,9 @@ export default function SettingsScreen() {
     try {
       await deleteAccount();
     } catch {
-      // server may be unreachable; local cleanup already happened in the store
+      Alert.alert(t("common.error"), t("settings.deleteAccountFailed"));
+      return;
     }
-    resetSubscriptions();
-    resetSettings();
     router.replace("/onboarding");
   }
 
@@ -706,7 +703,7 @@ export default function SettingsScreen() {
                     value={lockTimeoutLabel(biometricLockTimeout)}
                     right={<Feather name="chevron-right" size={18} color="#a3a3a3" />}
                     onPress={() => {
-                      const options: Array<{ label: string; value: 1 | 5 | 15 | 60 }> = [
+                      const options: { label: string; value: 1 | 5 | 15 | 60 }[] = [
                         { label: t("settings.rows.lockTimeout1"), value: 1 },
                         { label: t("settings.rows.lockTimeout5"), value: 5 },
                         { label: t("settings.rows.lockTimeout15"), value: 15 },
