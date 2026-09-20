@@ -51,5 +51,4 @@ class SocialIdentityVerifier
 
         throw ValidationException::withMessages(['id_token' => "Invalid {$provider} token audience."]);
     }
-
 }
